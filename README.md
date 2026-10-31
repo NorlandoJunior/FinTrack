@@ -22,6 +22,17 @@ FinTrack aims to simplify financial organization by bringing important financial
 - **Financial Dashboard:** View income, expenses, and available balance.
 - **Future Expense Planning:** Track upcoming installments and recurring payments.
 
+## Live Demo
+
+The FinTrack application is available online:
+
+**[Access FinTrack](https://fin-track-three-sable.vercel.app)**
+
+## Team Members
+
+- **Norlando Junior**
+- **William Alves Canuto**
+
 ## Technologies
 
 The project is planned to use the following technologies:
