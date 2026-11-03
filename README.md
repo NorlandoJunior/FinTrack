@@ -31,7 +31,8 @@ The FinTrack application is available online:
 ## Team Members
 
 - **Norlando Junior**
-- **William Alves Canuto**
+- **Willian Alves Canuto**
+    Moroni 10:32 "Yea, come unto Christ, and be perfected in him, and deny yourselves of all ungodliness; and if ye shall deny yourselves of all ungodliness, and love God with all your might, mind and strength, then is his grace sufficient for you, that by his grace ye may be perfect in Christ; and if by the grace of God ye are perfect in Christ, ye can in nowise deny the power of God."
 
 ## Technologies
 
