@@ -31,7 +31,6 @@ The FinTrack application is available online:
 ## Team Members
 
 - **Norlando Junior**
-- "Jhon 8:31 Then said Jesus to those Jews which believed on him, If ye continue in my word, then are ye my disciples indeed;"
 - **William Alves Canuto**
 
 ## Technologies
