@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import "./index.css";
 
 // Ícones das funcionalidades
@@ -43,6 +43,36 @@ function Icon({ type }) {
         <path d="M16 3v4M8 3v4M3 10h18M7 14h10M7 17h7" />
       </>
     ),
+     installments: (
+      <>
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <path d="M2 10h20M7 15h3M15 15h2" />
+      </>
+    ),
+    repeat: (
+      <>
+        <path d="m17 2 4 4-4 4" />
+        <path d="M3 11V9a3 3 0 0 1 3-3h15" />
+        <path d="m7 22-4-4 4-4" />
+        <path d="M21 13v2a3 3 0 0 1-3 3H3" />
+      </>
+    ),
+    reports: (
+      <>
+        <path d="M3 3v18h18" />
+        <path d="M18 17V9M13 17V5M8 17v-3" />
+      </>
+    ),
+    menu: (
+      <>
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </>
+    ),
+    close: (
+      <>
+        <path d="m6 6 12 12M18 6 6 18" />
+      </>
+    ),
   };
 
   return (
@@ -65,6 +95,236 @@ function Icon({ type }) {
 // Componente para os pequenos títulos das seções
 function SectionLabel({ children }) {
   return <div className="section-label">{children}</div>;
+}
+
+function Dashboard() {
+  const [expanded, setExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  const navigation = [
+    { id: "dashboard", label: "Financial Dashboard", icon: "dashboard" },
+    { id: "income", label: "Income Management", icon: "wallet" },
+    { id: "expenses", label: "Expense Tracking", icon: "receipt" },
+    { id: "installments", label: "Installment Management", icon: "installments" },
+    { id: "budget", label: "Monthly Budget Management", icon: "chart" },
+    { id: "recurring", label: "Recurring Expenses", icon: "repeat" },
+    { id: "reports", label: "Financial Reports", icon: "reports" },
+  ];
+
+  const currentPage = navigation.find((item) => item.id === activeTab);
+
+  return (
+    <div className={`dashboard-layout ${expanded ? "sidebar-expanded" : "sidebar-collapsed"}`}>
+
+      {/* SIDEBAR */}
+      <aside className="dashboard-sidebar">
+
+        <div className="sidebar-top">
+          <a href="/" className="dashboard-brand">
+            {expanded ? "FinTrack" : "F"}
+          </a>
+
+          <button
+            className="sidebar-toggle"
+            onClick={() => setExpanded(!expanded)}
+            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            title={expanded ? "Collapse menu" : "Expand menu"}
+          >
+            <Icon type="menu" />
+          </button>
+        </div>
+
+        <nav className="dashboard-navigation">
+          {navigation.map((item) => (
+            <button
+              key={item.id}
+              className={`sidebar-link ${activeTab === item.id ? "active" : ""}`}
+              onClick={() => setActiveTab(item.id)}
+              title={!expanded ? item.label : undefined}
+              aria-current={activeTab === item.id ? "page" : undefined}
+            >
+              <Icon type={item.icon} />
+
+              {expanded && (
+                <span>{item.label}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          {expanded && <span>Personal Finance</span>}
+        </div>
+
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main className="dashboard-main">
+
+        <header className="dashboard-topbar">
+          <div>
+            <span className="dashboard-eyebrow">FINTRACK / OVERVIEW</span>
+            <h1>{currentPage.label}</h1>
+          </div>
+
+          <div className="dashboard-user">
+            <div className="user-avatar">N</div>
+            {expanded && <span>My Account</span>}
+          </div>
+        </header>
+
+        {activeTab === "dashboard" ? (
+
+          <section className="dashboard-content">
+
+            <div className="welcome-section">
+              <div>
+                <h2>Welcome back!</h2>
+                <p>Here is an overview of your financial situation.</p>
+              </div>
+
+              <span className="demo-label">DEMO DATA</span>
+            </div>
+
+            {/* FINANCIAL SUMMARY */}
+            <div className="financial-cards">
+
+              <article className="financial-card balance-card">
+                <span>Available Balance</span>
+                <strong>R$ 4.250,00</strong>
+                <small>Income minus expenses</small>
+              </article>
+
+              <article className="financial-card">
+                <span>Total Income</span>
+                <strong>R$ 6.500,00</strong>
+                <small>This month</small>
+              </article>
+
+              <article className="financial-card">
+                <span>Total Expenses</span>
+                <strong>R$ 2.250,00</strong>
+                <small>This month</small>
+              </article>
+
+            </div>
+
+            {/* LOWER CONTENT */}
+            <div className="dashboard-grid">
+
+              <article className="dashboard-panel spending-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h3>Monthly Budget</h3>
+                    <p>Your spending progress</p>
+                  </div>
+
+                  <Icon type="chart" />
+                </div>
+
+                <div className="budget-values">
+                  <strong>R$ 2.250,00</strong>
+                  <span>of R$ 4.000,00</span>
+                </div>
+
+                <div className="budget-progress">
+                  <div style={{ width: "56.25%" }} />
+                </div>
+
+                <div className="budget-footer">
+                  <span>56.25% used</span>
+                  <strong>R$ 1.750,00 remaining</strong>
+                </div>
+              </article>
+
+              <article className="dashboard-panel payments-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h3>Upcoming Payments</h3>
+                    <p>Your next financial commitments</p>
+                  </div>
+
+                  <Icon type="calendar" />
+                </div>
+
+                <div className="payment-item">
+                  <div>
+                    <strong>Credit card installment</strong>
+                    <span>November 10</span>
+                  </div>
+                  <strong>R$ 250,00</strong>
+                </div>
+
+                <div className="payment-item">
+                  <div>
+                    <strong>Internet bill</strong>
+                    <span>November 15</span>
+                  </div>
+                  <strong>R$ 120,00</strong>
+                </div>
+
+                <div className="payment-item">
+                  <div>
+                    <strong>Subscription</strong>
+                    <span>November 20</span>
+                  </div>
+                  <strong>R$ 49,90</strong>
+                </div>
+              </article>
+
+              <article className="dashboard-panel transactions-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h3>Recent Transactions</h3>
+                    <p>Your latest financial activity</p>
+                  </div>
+
+                  <Icon type="receipt" />
+                </div>
+
+                <div className="transaction-item">
+                  <span>Salary</span>
+                  <strong className="income-value">+ R$ 3.500,00</strong>
+                </div>
+
+                <div className="transaction-item">
+                  <span>Groceries</span>
+                  <strong className="expense-value">- R$ 450,00</strong>
+                </div>
+
+                <div className="transaction-item">
+                  <span>Transportation</span>
+                  <strong className="expense-value">- R$ 180,00</strong>
+                </div>
+              </article>
+
+            </div>
+          </section>
+
+        ) : (
+
+          <section className="dashboard-content">
+            <div className="dashboard-panel coming-soon">
+              <div className="coming-soon-icon">
+                <Icon type={currentPage.icon} />
+              </div>
+
+              <h2>{currentPage.label}</h2>
+
+              <p>
+                This section is part of the FinTrack project.
+                Its functionality will be implemented in upcoming development stages.
+              </p>
+
+              <span className="demo-label">UNDER DEVELOPMENT</span>
+            </div>
+          </section>
+
+        )}
+
+      </main>
+    </div>
+  );
 }
 
 function App() {
@@ -104,6 +364,11 @@ function App() {
     },
   ];
 
+  // Display the dashboard on the /dashboard route
+  if (window.location.pathname === "/dashboard") {
+    return <Dashboard />;
+  }
+
   return (
     <>
       {/* HEADER */}
@@ -119,7 +384,7 @@ function App() {
           <a href="#features">Features</a>
         </nav>
 
-        <a className="login-button" href="#login">
+        <a className="login-button" href="/dashboard">
           <span>Login</span>
         </a>
       </header>
@@ -283,7 +548,7 @@ function App() {
                 view of your money.
               </p>
 
-              <a className="cta-button" href="#home">
+              <a className="cta-button" href="/dashboard">
                 Create your account
               </a>
             </div>
@@ -304,5 +569,6 @@ function App() {
     </>
   );
 }
+
 
 export default App;
