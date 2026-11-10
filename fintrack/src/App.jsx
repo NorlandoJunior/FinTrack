@@ -97,9 +97,70 @@ function SectionLabel({ children }) {
   return <div className="section-label">{children}</div>;
 }
 
+
 function Dashboard() {
   const [expanded, setExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState("dashboard");
+
+  // =========================================
+  // INCOME MANAGEMENT - STATES
+  // =========================================
+
+  const [incomes, setIncomes] = useState(() => {
+    try {
+      const savedIncomes = JSON.parse(
+        localStorage.getItem("fintrack-incomes")
+      );
+
+      return Array.isArray(savedIncomes) ? savedIncomes : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [incomeForm, setIncomeForm] = useState({
+    amount: "",
+    description: "",
+    category: "",
+    date: new Date().toISOString().slice(0, 10),
+  });
+
+  // Save income records
+  React.useEffect(() => {
+    localStorage.setItem("fintrack-incomes", JSON.stringify(incomes));
+  }, [incomes]);
+
+  // Calculate total income
+  const totalIncome = incomes.reduce(
+    (total, income) => total + Number(income.amount),
+    0
+  );
+
+  // Add income
+  function handleAddIncome(event) {
+    event.preventDefault();
+
+    const newIncome = {
+      id: crypto.randomUUID(),
+      ...incomeForm,
+    };
+
+    setIncomes((previousIncomes) => [
+      ...previousIncomes,
+      newIncome,
+    ]);
+
+    setIncomeForm({
+      amount: "",
+      description: "",
+      category: "",
+      date: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  // =========================================
+  // NAVIGATION
+  // =========================================
 
   const navigation = [
     { id: "dashboard", label: "Financial Dashboard", icon: "dashboard" },
@@ -111,10 +172,16 @@ function Dashboard() {
     { id: "reports", label: "Financial Reports", icon: "reports" },
   ];
 
-  const currentPage = navigation.find((item) => item.id === activeTab);
+  const currentPage = navigation.find(
+    (item) => item.id === activeTab
+  );
 
   return (
-    <div className={`dashboard-layout ${expanded ? "sidebar-expanded" : "sidebar-collapsed"}`}>
+    <div
+      className={`dashboard-layout ${
+        expanded ? "sidebar-expanded" : "sidebar-collapsed"
+      }`}
+    >
 
       {/* SIDEBAR */}
       <aside className="dashboard-sidebar">
@@ -138,7 +205,9 @@ function Dashboard() {
           {navigation.map((item) => (
             <button
               key={item.id}
-              className={`sidebar-link ${activeTab === item.id ? "active" : ""}`}
+              className={`sidebar-link ${
+                activeTab === item.id ? "active" : ""
+              }`}
               onClick={() => setActiveTab(item.id)}
               title={!expanded ? item.label : undefined}
               aria-current={activeTab === item.id ? "page" : undefined}
@@ -163,7 +232,9 @@ function Dashboard() {
 
         <header className="dashboard-topbar">
           <div>
-            <span className="dashboard-eyebrow">FINTRACK / OVERVIEW</span>
+            <span className="dashboard-eyebrow">
+              FINTRACK / OVERVIEW
+            </span>
             <h1>{currentPage.label}</h1>
           </div>
 
@@ -173,6 +244,10 @@ function Dashboard() {
           </div>
         </header>
 
+        {/* =====================================
+            FINANCIAL DASHBOARD
+        ===================================== */}
+
         {activeTab === "dashboard" ? (
 
           <section className="dashboard-content">
@@ -180,7 +255,9 @@ function Dashboard() {
             <div className="welcome-section">
               <div>
                 <h2>Welcome back!</h2>
-                <p>Here is an overview of your financial situation.</p>
+                <p>
+                  Here is an overview of your financial situation.
+                </p>
               </div>
 
               <span className="demo-label">DEMO DATA</span>
@@ -284,27 +361,278 @@ function Dashboard() {
 
                 <div className="transaction-item">
                   <span>Salary</span>
-                  <strong className="income-value">+ R$ 3.500,00</strong>
+                  <strong className="income-value">
+                    + R$ 3.500,00
+                  </strong>
                 </div>
 
                 <div className="transaction-item">
                   <span>Groceries</span>
-                  <strong className="expense-value">- R$ 450,00</strong>
+                  <strong className="expense-value">
+                    - R$ 450,00
+                  </strong>
                 </div>
 
                 <div className="transaction-item">
                   <span>Transportation</span>
-                  <strong className="expense-value">- R$ 180,00</strong>
+                  <strong className="expense-value">
+                    - R$ 180,00
+                  </strong>
                 </div>
               </article>
 
             </div>
           </section>
 
+        ) : activeTab === "income" ? (
+
+          /* =====================================
+             INCOME MANAGEMENT
+          ===================================== */
+
+          <section className="dashboard-content income-content">
+
+            {/* INCOME HEADER */}
+            <div className="income-welcome">
+              <div>
+                <span className="income-eyebrow">
+                  FINANCIAL MANAGEMENT
+                </span>
+                <h2>Manage your income</h2>
+                <p>
+                  Track and organize the money you receive.
+                </p>
+              </div>
+
+              <span className="demo-label">
+                INCOME MANAGEMENT
+              </span>
+            </div>
+
+            {/* TOTAL INCOME */}
+            <article className="income-summary-card">
+              <div className="income-summary-icon">
+                <Icon type="wallet" />
+              </div>
+
+              <div>
+                <span>Total Income</span>
+
+                <strong>
+                  {totalIncome.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </strong>
+
+                <small>
+                  {incomes.length} income records
+                </small>
+              </div>
+            </article>
+
+            {/* ADD INCOME FORM */}
+            <article className="dashboard-panel income-form-panel">
+
+              <div className="income-panel-heading">
+                <div>
+                  <h3>Add New Income</h3>
+                  <p>
+                    Enter the details of the income you received.
+                  </p>
+                </div>
+
+                <span className="income-plus">+</span>
+              </div>
+
+              <form
+                className="income-form"
+                onSubmit={handleAddIncome}
+              >
+
+                <div className="income-field">
+                  <label htmlFor="income-description">
+                    Description
+                  </label>
+
+                  <input
+                    id="income-description"
+                    type="text"
+                    placeholder="e.g. Monthly salary"
+                    value={incomeForm.description}
+                    onChange={(event) =>
+                      setIncomeForm({
+                        ...incomeForm,
+                        description: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="income-field">
+                  <label htmlFor="income-amount">
+                    Amount (R$)
+                  </label>
+
+                  <input
+                    id="income-amount"
+                    type="number"
+                    placeholder="0.00"
+                    min="0.01"
+                    step="0.01"
+                    value={incomeForm.amount}
+                    onChange={(event) =>
+                      setIncomeForm({
+                        ...incomeForm,
+                        amount: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="income-field">
+                  <label htmlFor="income-category">
+                    Category
+                  </label>
+
+                  <select
+                    id="income-category"
+                    value={incomeForm.category}
+                    onChange={(event) =>
+                      setIncomeForm({
+                        ...incomeForm,
+                        category: event.target.value,
+                      })
+                    }
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    <option value="Salary">Salary</option>
+                    <option value="Freelance">Freelance</option>
+                    <option value="Business">Business</option>
+                    <option value="Investments">Investments</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="income-field">
+                  <label htmlFor="income-date">
+                    Date
+                  </label>
+
+                  <input
+                    id="income-date"
+                    type="date"
+                    value={incomeForm.date}
+                    onChange={(event) =>
+                      setIncomeForm({
+                        ...incomeForm,
+                        date: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="income-form-actions">
+                  <button
+                    type="submit"
+                    className="add-income-button"
+                  >
+                    + Add Income
+                  </button>
+                </div>
+
+              </form>
+            </article>
+
+            {/* INCOME RECORDS */}
+            <article className="dashboard-panel income-records-panel">
+
+              <div className="income-panel-heading">
+                <div>
+                  <h3>Income Records</h3>
+                  <p>
+                    All your registered income transactions.
+                  </p>
+                </div>
+
+                <Icon type="receipt" />
+              </div>
+
+              {incomes.length > 0 ? (
+
+                <div className="income-record-list">
+
+                  {[...incomes]
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map((income) => (
+
+                      <div
+                        className="income-record"
+                        key={income.id}
+                      >
+
+                        <div className="income-record-icon">
+                          <Icon type="wallet" />
+                        </div>
+
+                        <div className="income-record-info">
+                          <strong>
+                            {income.description}
+                          </strong>
+
+                          <span>
+                            {income.category} ·{" "}
+                            {new Date(
+                              `${income.date}T12:00:00`
+                            ).toLocaleDateString("pt-BR")}
+                          </span>
+                        </div>
+
+                        <strong className="income-record-amount">
+                          +{" "}
+                          {Number(income.amount).toLocaleString(
+                            "pt-BR",
+                            {
+                              style: "currency",
+                              currency: "BRL",
+                            }
+                          )}
+                        </strong>
+
+                      </div>
+                    ))}
+
+                </div>
+
+              ) : (
+
+                <div className="income-empty-state">
+                  <Icon type="wallet" />
+                  <h4>No income records yet</h4>
+                  <p>
+                    Your registered income transactions will appear here.
+                  </p>
+                </div>
+
+              )}
+
+            </article>
+
+          </section>
+
         ) : (
+
+          /* =====================================
+             OTHER SECTIONS - UNDER DEVELOPMENT
+          ===================================== */
 
           <section className="dashboard-content">
             <div className="dashboard-panel coming-soon">
+
               <div className="coming-soon-icon">
                 <Icon type={currentPage.icon} />
               </div>
@@ -316,7 +644,10 @@ function Dashboard() {
                 Its functionality will be implemented in upcoming development stages.
               </p>
 
-              <span className="demo-label">UNDER DEVELOPMENT</span>
+              <span className="demo-label">
+                UNDER DEVELOPMENT
+              </span>
+
             </div>
           </section>
 
@@ -326,6 +657,7 @@ function Dashboard() {
     </div>
   );
 }
+
 
 function App() {
   const features = [
