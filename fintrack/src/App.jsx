@@ -124,11 +124,28 @@ function Dashboard() {
     category: "",
     date: new Date().toISOString().slice(0, 10),
   });
+  const [editingIncomeId, setEditingIncomeId] = useState(null);
+
+  const [expenses, setExpenses] = useState(() => {
+    try {
+      const savedExpenses = JSON.parse(
+        localStorage.getItem("fintrack-expenses")
+      );
+
+      return Array.isArray(savedExpenses) ? savedExpenses : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Save income records
   React.useEffect(() => {
     localStorage.setItem("fintrack-incomes", JSON.stringify(incomes));
   }, [incomes]);
+
+  React.useEffect(() => {
+    localStorage.setItem("fintrack-expenses", JSON.stringify(expenses));
+  }, [expenses]);
 
   // Calculate total income
   const totalIncome = incomes.reduce(
@@ -136,26 +153,60 @@ function Dashboard() {
     0
   );
 
-  // Add income
-  function handleAddIncome(event) {
-    event.preventDefault();
-
-    const newIncome = {
-      id: crypto.randomUUID(),
-      ...incomeForm,
-    };
-
-    setIncomes((previousIncomes) => [
-      ...previousIncomes,
-      newIncome,
-    ]);
-
+  function resetIncomeForm() {
     setIncomeForm({
       amount: "",
       description: "",
       category: "",
       date: new Date().toISOString().slice(0, 10),
     });
+    setEditingIncomeId(null);
+  }
+
+  function handleAddIncome(event) {
+    event.preventDefault();
+
+    if (editingIncomeId) {
+      setIncomes((previousIncomes) =>
+        previousIncomes.map((income) =>
+          income.id === editingIncomeId
+            ? { ...income, ...incomeForm }
+            : income
+        )
+      );
+    } else {
+      setIncomes((previousIncomes) => [
+        ...previousIncomes,
+        { id: crypto.randomUUID(), ...incomeForm },
+      ]);
+    }
+
+    resetIncomeForm();
+  }
+
+  function handleEditIncome(income) {
+    setIncomeForm({
+      amount: income.amount,
+      description: income.description,
+      category: income.category,
+      date: income.date,
+    });
+    setEditingIncomeId(income.id);
+    document.getElementById("income-description")?.focus();
+  }
+
+  function handleDeleteIncome(incomeId) {
+    if (!window.confirm("Delete this income? This action cannot be undone.")) {
+      return;
+    }
+
+    setIncomes((previousIncomes) =>
+      previousIncomes.filter((income) => income.id !== incomeId)
+    );
+
+    if (editingIncomeId === incomeId) {
+      resetIncomeForm();
+    }
   }
 
   // =========================================
@@ -436,13 +487,17 @@ function Dashboard() {
 
               <div className="income-panel-heading">
                 <div>
-                  <h3>Add New Income</h3>
+                  <h3>{editingIncomeId ? "Edit Income" : "Add New Income"}</h3>
                   <p>
-                    Enter the details of the income you received.
+                    {editingIncomeId
+                      ? "Update the details of this income."
+                      : "Enter the details of the income you received."}
                   </p>
                 </div>
 
-                <span className="income-plus">+</span>
+                <span className="income-plus">
+                  {editingIncomeId ? "✎" : "+"}
+                </span>
               </div>
 
               <form
@@ -536,12 +591,21 @@ function Dashboard() {
                   />
                 </div>
 
-                <div className="income-form-actions">
+                <div className="income-form-actions expense-form-actions">
+                  {editingIncomeId && (
+                    <button
+                      type="button"
+                      className="cancel-expense-button"
+                      onClick={resetIncomeForm}
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <button
                     type="submit"
                     className="add-income-button"
                   >
-                    + Add Income
+                    {editingIncomeId ? "Save Changes" : "+ Add Income"}
                   </button>
                 </div>
 
@@ -603,6 +667,23 @@ function Dashboard() {
                           )}
                         </strong>
 
+                        <div className="expense-record-actions income-record-actions">
+                          <button
+                            type="button"
+                            onClick={() => handleEditIncome(income)}
+                            aria-label={`Edit ${income.description}`}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteIncome(income.id)}
+                            aria-label={`Delete ${income.description}`}
+                          >
+                            Delete
+                          </button>
+                        </div>
+
                       </div>
                     ))}
 
@@ -623,6 +704,13 @@ function Dashboard() {
             </article>
 
           </section>
+
+        ) : activeTab === "expenses" ? (
+
+          <ExpenseManagement
+            expenses={expenses}
+            setExpenses={setExpenses}
+          />
 
         ) : (
 
@@ -655,6 +743,291 @@ function Dashboard() {
 
       </main>
     </div>
+  );
+}
+
+function ExpenseManagement({ expenses, setExpenses }) {
+  const createEmptyForm = () => ({
+    amount: "",
+    description: "",
+    category: "",
+    date: new Date().toISOString().slice(0, 10),
+    paymentMethod: "",
+  });
+  const [expenseForm, setExpenseForm] = useState(createEmptyForm);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const totalExpenses = expenses.reduce(
+    (total, expense) => total + Number(expense.amount),
+    0
+  );
+
+  function resetForm() {
+    setExpenseForm(createEmptyForm());
+    setEditingExpenseId(null);
+  }
+
+  function handleSaveExpense(event) {
+    event.preventDefault();
+
+    if (editingExpenseId) {
+      setExpenses((previousExpenses) =>
+        previousExpenses.map((expense) =>
+          expense.id === editingExpenseId
+            ? { ...expense, ...expenseForm }
+            : expense
+        )
+      );
+    } else {
+      setExpenses((previousExpenses) => [
+        ...previousExpenses,
+        { id: crypto.randomUUID(), ...expenseForm },
+      ]);
+    }
+
+    resetForm();
+  }
+
+  function handleEditExpense(expense) {
+    setExpenseForm({
+      amount: expense.amount,
+      description: expense.description,
+      category: expense.category,
+      date: expense.date,
+      paymentMethod: expense.paymentMethod,
+    });
+    setEditingExpenseId(expense.id);
+    document.getElementById("expense-description")?.focus();
+  }
+
+  function handleDeleteExpense(expenseId) {
+    if (!window.confirm("Delete this expense? This action cannot be undone.")) {
+      return;
+    }
+
+    setExpenses((previousExpenses) =>
+      previousExpenses.filter((expense) => expense.id !== expenseId)
+    );
+
+    if (editingExpenseId === expenseId) {
+      resetForm();
+    }
+  }
+
+  return (
+    <section className="dashboard-content expense-content">
+      <div className="expense-welcome">
+        <div>
+          <span className="income-eyebrow">FINANCIAL MANAGEMENT</span>
+          <h2>Manage your expenses</h2>
+          <p>Record and organize your everyday spending.</p>
+        </div>
+        <span className="demo-label">EXPENSE TRACKING</span>
+      </div>
+
+      <article className="expense-summary-card">
+        <div className="expense-summary-icon">
+          <Icon type="receipt" />
+        </div>
+        <div>
+          <span>Total Expenses</span>
+          <strong>
+            {totalExpenses.toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            })}
+          </strong>
+          <small>{expenses.length} expense records</small>
+        </div>
+      </article>
+
+      <article className="dashboard-panel expense-form-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>{editingExpenseId ? "Edit Expense" : "Add New Expense"}</h3>
+            <p>
+              {editingExpenseId
+                ? "Update the details of this expense."
+                : "Enter the details of the expense you made."}
+            </p>
+          </div>
+          <span className="expense-plus">{editingExpenseId ? "✎" : "+"}</span>
+        </div>
+
+        <form className="income-form" onSubmit={handleSaveExpense}>
+          <div className="income-field">
+            <label htmlFor="expense-description">Description</label>
+            <input
+              id="expense-description"
+              type="text"
+              placeholder="e.g. Grocery shopping"
+              value={expenseForm.description}
+              onChange={(event) =>
+                setExpenseForm({
+                  ...expenseForm,
+                  description: event.target.value,
+                })
+              }
+              required
+            />
+          </div>
+
+          <div className="income-field">
+            <label htmlFor="expense-amount">Amount (R$)</label>
+            <input
+              id="expense-amount"
+              type="number"
+              placeholder="0.00"
+              min="0.01"
+              step="0.01"
+              value={expenseForm.amount}
+              onChange={(event) =>
+                setExpenseForm({ ...expenseForm, amount: event.target.value })
+              }
+              required
+            />
+          </div>
+
+          <div className="income-field">
+            <label htmlFor="expense-category">Category</label>
+            <select
+              id="expense-category"
+              value={expenseForm.category}
+              onChange={(event) =>
+                setExpenseForm({
+                  ...expenseForm,
+                  category: event.target.value,
+                })
+              }
+              required
+            >
+              <option value="">Select a category</option>
+              <option value="Housing">Housing</option>
+              <option value="Food">Food</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Health">Health</option>
+              <option value="Education">Education</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Bills">Bills</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="income-field">
+            <label htmlFor="expense-date">Date</label>
+            <input
+              id="expense-date"
+              type="date"
+              value={expenseForm.date}
+              onChange={(event) =>
+                setExpenseForm({ ...expenseForm, date: event.target.value })
+              }
+              required
+            />
+          </div>
+
+          <div className="income-field">
+            <label htmlFor="expense-payment-method">Payment Method</label>
+            <select
+              id="expense-payment-method"
+              value={expenseForm.paymentMethod}
+              onChange={(event) =>
+                setExpenseForm({
+                  ...expenseForm,
+                  paymentMethod: event.target.value,
+                })
+              }
+              required
+            >
+              <option value="">Select a payment method</option>
+              <option value="Credit card">Credit card</option>
+              <option value="Debit card">Debit card</option>
+              <option value="Cash">Cash</option>
+              <option value="Pix">Pix</option>
+              <option value="Bank transfer">Bank transfer</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="income-form-actions expense-form-actions">
+            {editingExpenseId && (
+              <button
+                type="button"
+                className="cancel-expense-button"
+                onClick={resetForm}
+              >
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="add-expense-button">
+              {editingExpenseId ? "Save Changes" : "+ Add Expense"}
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article className="dashboard-panel expense-records-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>Expense Records</h3>
+            <p>All your registered expense transactions.</p>
+          </div>
+          <Icon type="receipt" />
+        </div>
+
+        {expenses.length > 0 ? (
+          <div className="income-record-list">
+            {[...expenses]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map((expense) => (
+                <div className="expense-record" key={expense.id}>
+                  <div className="expense-record-icon">
+                    <Icon type="receipt" />
+                  </div>
+                  <div className="income-record-info">
+                    <strong>{expense.description}</strong>
+                    <span>
+                      {expense.category} · {expense.paymentMethod} ·{" "}
+                      {new Date(`${expense.date}T12:00:00`).toLocaleDateString(
+                        "pt-BR"
+                      )}
+                    </span>
+                  </div>
+                  <strong className="expense-record-amount">
+                    −{" "}
+                    {Number(expense.amount).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </strong>
+                  <div className="expense-record-actions">
+                    <button
+                      type="button"
+                      onClick={() => handleEditExpense(expense)}
+                      aria-label={`Edit ${expense.description}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteExpense(expense.id)}
+                      aria-label={`Delete ${expense.description}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <div className="income-empty-state">
+            <Icon type="receipt" />
+            <h4>No expense records yet</h4>
+            <p>Your registered expense transactions will appear here.</p>
+          </div>
+        )}
+      </article>
+    </section>
   );
 }
 

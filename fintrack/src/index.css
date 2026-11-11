@@ -1606,3 +1606,232 @@ a {
     margin-left: 56px;
   }
 }
+
+/* =========================================
+   18. EXPENSE MANAGEMENT
+========================================= */
+
+.expense-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.expense-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.expense-welcome h2 {
+  margin: 0 0 8px;
+  color: #213448;
+  font-size: 25px;
+}
+
+.expense-welcome p {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.expense-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e5ebef;
+  border-radius: 18px;
+}
+
+.expense-summary-icon,
+.expense-record-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #c25e5e;
+  background: #f9e8e7;
+  border-radius: 15px;
+}
+
+.expense-summary-icon {
+  width: 54px;
+  height: 54px;
+}
+
+.expense-summary-card span,
+.expense-summary-card small {
+  display: block;
+  color: #718096;
+  font-size: 13px;
+}
+
+.expense-summary-card strong {
+  display: block;
+  margin: 5px 0;
+  color: #213448;
+  font-size: 25px;
+}
+
+.expense-form-panel,
+.expense-records-panel {
+  padding: 26px;
+}
+
+.expense-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #c25e5e;
+  background: #f9e8e7;
+  border-radius: 12px;
+  font-size: 21px;
+}
+
+.expense-form-actions {
+  gap: 10px;
+}
+
+.add-expense-button,
+.cancel-expense-button {
+  min-height: 46px;
+  padding: 0 24px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.add-expense-button {
+  color: #ffffff;
+  background: #c25e5e;
+}
+
+.add-expense-button:hover,
+.add-expense-button:focus-visible {
+  color: #9c4141;
+  background: #f9e8e7;
+}
+
+.cancel-expense-button {
+  color: #45647d;
+  background: #ffffff;
+  border-color: #dce5eb;
+}
+
+.cancel-expense-button:hover,
+.cancel-expense-button:focus-visible {
+  background: #f4f6f8;
+}
+
+.expense-record {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 0;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.expense-record:last-child {
+  border-bottom: none;
+}
+
+.expense-record-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.expense-record-amount {
+  color: #c25e5e;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.expense-record-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.expense-record-actions button {
+  padding: 7px 10px;
+  color: #45647d;
+  background: #f4f6f8;
+  border: 1px solid #e5ebef;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.expense-record-actions button:hover,
+.expense-record-actions button:focus-visible {
+  color: #213448;
+  background: #e6edf2;
+}
+
+.expense-record-actions button:last-child {
+  color: #a84747;
+  background: #fff7f6;
+  border-color: #f1d8d6;
+}
+
+.expense-record-actions button:last-child:hover,
+.expense-record-actions button:last-child:focus-visible {
+  background: #f9e8e7;
+}
+
+.add-expense-button:focus-visible,
+.cancel-expense-button:focus-visible,
+.expense-record-actions button:focus-visible {
+  outline: 3px solid #94b4c1;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .expense-welcome {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .expense-form-panel,
+  .expense-records-panel {
+    padding: 20px;
+  }
+
+  .expense-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .add-expense-button,
+  .cancel-expense-button {
+    width: 100%;
+  }
+
+  .expense-record,
+  .income-record {
+    flex-wrap: wrap;
+  }
+
+  .expense-record-amount,
+  .income-record-amount {
+    margin-left: 56px;
+  }
+
+  .expense-record-actions,
+  .income-record-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 56px;
+  }
+}
