@@ -138,6 +138,28 @@ function Dashboard() {
     }
   });
 
+  const [monthlyBudget, setMonthlyBudget] = useState(() => {
+    const savedBudget = Number(localStorage.getItem("fintrack-monthly-budget"));
+    return Number.isFinite(savedBudget) && savedBudget > 0 ? savedBudget : 0;
+  });
+  const [budgetForm, setBudgetForm] = useState(() => {
+    const savedBudget = Number(localStorage.getItem("fintrack-monthly-budget"));
+    return Number.isFinite(savedBudget) && savedBudget > 0
+      ? String(savedBudget)
+      : "";
+  });
+  const [scheduledPayments, setScheduledPayments] = useState(() => {
+    try {
+      const savedPayments = JSON.parse(
+        localStorage.getItem("fintrack-scheduled-payments")
+      );
+
+      return Array.isArray(savedPayments) ? savedPayments : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Save income records
   React.useEffect(() => {
     localStorage.setItem("fintrack-incomes", JSON.stringify(incomes));
@@ -147,11 +169,62 @@ function Dashboard() {
     localStorage.setItem("fintrack-expenses", JSON.stringify(expenses));
   }, [expenses]);
 
+  React.useEffect(() => {
+    localStorage.setItem("fintrack-monthly-budget", String(monthlyBudget));
+  }, [monthlyBudget]);
+
+  React.useEffect(() => {
+    localStorage.setItem(
+      "fintrack-scheduled-payments",
+      JSON.stringify(scheduledPayments)
+    );
+  }, [scheduledPayments]);
+
   // Calculate total income
   const totalIncome = incomes.reduce(
     (total, income) => total + Number(income.amount),
     0
   );
+  const currentDate = new Date();
+  const currentMonth = `${currentDate.getFullYear()}-${String(
+    currentDate.getMonth() + 1
+  ).padStart(2, "0")}`;
+  const today = `${currentMonth}-${String(currentDate.getDate()).padStart(
+    2,
+    "0"
+  )}`;
+  const currentMonthIncomes = incomes.filter((income) =>
+    income.date.startsWith(currentMonth)
+  );
+  const currentMonthExpenses = expenses.filter((expense) =>
+    expense.date.startsWith(currentMonth)
+  );
+  const monthlyIncomeTotal = currentMonthIncomes.reduce(
+    (total, income) => total + Number(income.amount),
+    0
+  );
+  const monthlyExpenseTotal = currentMonthExpenses.reduce(
+    (total, expense) => total + Number(expense.amount),
+    0
+  );
+  const remainingBudget = monthlyBudget - monthlyExpenseTotal;
+  const budgetProgress = monthlyBudget
+    ? Math.min((monthlyExpenseTotal / monthlyBudget) * 100, 100)
+    : 0;
+  const upcomingPayments = scheduledPayments
+    .filter((payment) => payment.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const recentTransactions = [
+    ...incomes.map((income) => ({ ...income, type: "income" })),
+    ...expenses.map((expense) => ({ ...expense, type: "expense" })),
+  ]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+
+  function handleSaveBudget(event) {
+    event.preventDefault();
+    setMonthlyBudget(Number(budgetForm));
+  }
 
   function resetIncomeForm() {
     setIncomeForm({
@@ -219,6 +292,7 @@ function Dashboard() {
     { id: "expenses", label: "Expense Tracking", icon: "receipt" },
     { id: "installments", label: "Installment Management", icon: "installments" },
     { id: "budget", label: "Monthly Budget Management", icon: "chart" },
+    { id: "upcoming", label: "Upcoming Payments", icon: "calendar" },
     { id: "recurring", label: "Recurring Expenses", icon: "repeat" },
     { id: "reports", label: "Financial Reports", icon: "reports" },
   ];
@@ -311,7 +385,7 @@ function Dashboard() {
                 </p>
               </div>
 
-              <span className="demo-label">DEMO DATA</span>
+              <span className="demo-label">THIS MONTH</span>
             </div>
 
             {/* FINANCIAL SUMMARY */}
@@ -319,19 +393,34 @@ function Dashboard() {
 
               <article className="financial-card balance-card">
                 <span>Available Balance</span>
-                <strong>R$ 4.250,00</strong>
-                <small>Income minus expenses</small>
+                <strong>
+                  {(monthlyIncomeTotal - monthlyExpenseTotal).toLocaleString(
+                    "pt-BR",
+                    { style: "currency", currency: "BRL" }
+                  )}
+                </strong>
+                <small>Income minus expenses this month</small>
               </article>
 
               <article className="financial-card">
                 <span>Total Income</span>
-                <strong>R$ 6.500,00</strong>
+                <strong>
+                  {monthlyIncomeTotal.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </strong>
                 <small>This month</small>
               </article>
 
               <article className="financial-card">
                 <span>Total Expenses</span>
-                <strong>R$ 2.250,00</strong>
+                <strong>
+                  {monthlyExpenseTotal.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </strong>
                 <small>This month</small>
               </article>
 
@@ -351,18 +440,63 @@ function Dashboard() {
                 </div>
 
                 <div className="budget-values">
-                  <strong>R$ 2.250,00</strong>
-                  <span>of R$ 4.000,00</span>
+                  <strong>
+                    {monthlyExpenseTotal.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </strong>
+                  <span>
+                    {monthlyBudget
+                      ? `of ${monthlyBudget.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}`
+                      : "spent this month"}
+                  </span>
                 </div>
 
-                <div className="budget-progress">
-                  <div style={{ width: "56.25%" }} />
-                </div>
+                {monthlyBudget > 0 && (
+                  <div
+                    className={`budget-progress ${
+                      remainingBudget < 0 ? "over-budget" : ""
+                    }`}
+                    role="progressbar"
+                    aria-label="Monthly budget used"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow={Math.round(budgetProgress)}
+                  >
+                    <div style={{ width: `${budgetProgress}%` }} />
+                  </div>
+                )}
 
                 <div className="budget-footer">
-                  <span>56.25% used</span>
-                  <strong>R$ 1.750,00 remaining</strong>
+                  <span>
+                    {monthlyBudget
+                      ? `${((monthlyExpenseTotal / monthlyBudget) * 100).toFixed(
+                          1
+                        )}% used`
+                      : "No monthly limit set"}
+                  </span>
+                  <strong
+                    className={remainingBudget < 0 ? "over-budget-text" : ""}
+                  >
+                    {monthlyBudget
+                      ? `${remainingBudget.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })} ${remainingBudget < 0 ? "over budget" : "remaining"}`
+                      : "Set a budget limit"}
+                  </strong>
                 </div>
+                <button
+                  type="button"
+                  className="panel-link-button"
+                  onClick={() => setActiveTab("budget")}
+                >
+                  Manage monthly budget
+                </button>
               </article>
 
               <article className="dashboard-panel payments-panel">
@@ -375,29 +509,37 @@ function Dashboard() {
                   <Icon type="calendar" />
                 </div>
 
-                <div className="payment-item">
-                  <div>
-                    <strong>Credit card installment</strong>
-                    <span>November 10</span>
-                  </div>
-                  <strong>R$ 250,00</strong>
-                </div>
-
-                <div className="payment-item">
-                  <div>
-                    <strong>Internet bill</strong>
-                    <span>November 15</span>
-                  </div>
-                  <strong>R$ 120,00</strong>
-                </div>
-
-                <div className="payment-item">
-                  <div>
-                    <strong>Subscription</strong>
-                    <span>November 20</span>
-                  </div>
-                  <strong>R$ 49,90</strong>
-                </div>
+                {upcomingPayments.length > 0 ? (
+                  upcomingPayments.slice(0, 4).map((payment) => (
+                    <div className="payment-item" key={payment.id}>
+                      <div>
+                        <strong>{payment.description}</strong>
+                        <span>
+                          {new Date(
+                            `${payment.date}T12:00:00`
+                          ).toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                      <strong>
+                        {Number(payment.amount).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </strong>
+                    </div>
+                  ))
+                ) : (
+                  <p className="panel-empty-message">
+                    No upcoming payments scheduled.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="panel-link-button"
+                  onClick={() => setActiveTab("upcoming")}
+                >
+                  Manage upcoming payments
+                </button>
               </article>
 
               <article className="dashboard-panel transactions-panel">
@@ -410,26 +552,35 @@ function Dashboard() {
                   <Icon type="receipt" />
                 </div>
 
-                <div className="transaction-item">
-                  <span>Salary</span>
-                  <strong className="income-value">
-                    + R$ 3.500,00
-                  </strong>
-                </div>
-
-                <div className="transaction-item">
-                  <span>Groceries</span>
-                  <strong className="expense-value">
-                    - R$ 450,00
-                  </strong>
-                </div>
-
-                <div className="transaction-item">
-                  <span>Transportation</span>
-                  <strong className="expense-value">
-                    - R$ 180,00
-                  </strong>
-                </div>
+                {recentTransactions.length > 0 ? (
+                  recentTransactions.map((transaction) => (
+                    <div className="transaction-item" key={transaction.id}>
+                      <span>
+                        {transaction.description} ·{" "}
+                        {new Date(
+                          `${transaction.date}T12:00:00`
+                        ).toLocaleDateString("pt-BR")}
+                      </span>
+                      <strong
+                        className={
+                          transaction.type === "income"
+                            ? "income-value"
+                            : "expense-value"
+                        }
+                      >
+                        {transaction.type === "income" ? "+" : "−"}{" "}
+                        {Number(transaction.amount).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </strong>
+                    </div>
+                  ))
+                ) : (
+                  <p className="panel-empty-message">
+                    Your recent transactions will appear here.
+                  </p>
+                )}
               </article>
 
             </div>
@@ -712,6 +863,26 @@ function Dashboard() {
             setExpenses={setExpenses}
           />
 
+        ) : activeTab === "budget" ? (
+
+          <BudgetManagement
+            budgetForm={budgetForm}
+            setBudgetForm={setBudgetForm}
+            monthlyBudget={monthlyBudget}
+            monthlyExpenseTotal={monthlyExpenseTotal}
+            remainingBudget={remainingBudget}
+            budgetProgress={budgetProgress}
+            onSaveBudget={handleSaveBudget}
+          />
+
+        ) : activeTab === "upcoming" ? (
+
+          <UpcomingPaymentsManagement
+            payments={scheduledPayments}
+            setPayments={setScheduledPayments}
+            today={today}
+          />
+
         ) : (
 
           /* =====================================
@@ -743,6 +914,369 @@ function Dashboard() {
 
       </main>
     </div>
+  );
+}
+
+function BudgetManagement({
+  budgetForm,
+  setBudgetForm,
+  monthlyBudget,
+  monthlyExpenseTotal,
+  remainingBudget,
+  budgetProgress,
+  onSaveBudget,
+}) {
+  return (
+    <section className="dashboard-content income-content">
+      <div className="income-welcome">
+        <div>
+          <span className="income-eyebrow">FINANCIAL PLANNING</span>
+          <h2>Monthly budget</h2>
+          <p>Set a spending limit and keep track of what remains.</p>
+        </div>
+        <span className="demo-label">BUDGET MANAGEMENT</span>
+      </div>
+
+      <article className="income-summary-card budget-summary-card">
+        <div className="income-summary-icon">
+          <Icon type="chart" />
+        </div>
+        <div>
+          <span>Spent this month</span>
+          <strong>
+            {monthlyExpenseTotal.toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            })}
+          </strong>
+          <small>
+            {monthlyBudget > 0
+              ? `of ${monthlyBudget.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })} monthly limit`
+              : "Set a limit to start tracking your budget"}
+          </small>
+        </div>
+      </article>
+
+      {monthlyBudget > 0 && (
+        <article className="dashboard-panel budget-detail-panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Budget progress</h3>
+              <p>Based on your expenses recorded this month.</p>
+            </div>
+            <Icon type="chart" />
+          </div>
+          <div
+            className={`budget-progress ${
+              remainingBudget < 0 ? "over-budget" : ""
+            }`}
+            role="progressbar"
+            aria-label="Monthly budget used"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={Math.round(budgetProgress)}
+          >
+            <div style={{ width: `${budgetProgress}%` }} />
+          </div>
+          <div className="budget-footer">
+            <span>
+              {((monthlyExpenseTotal / monthlyBudget) * 100).toFixed(1)}% used
+            </span>
+            <strong
+              className={remainingBudget < 0 ? "over-budget-text" : ""}
+            >
+              {remainingBudget.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })}{" "}
+              {remainingBudget < 0 ? "over budget" : "remaining"}
+            </strong>
+          </div>
+        </article>
+      )}
+
+      <article className="dashboard-panel income-form-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>{monthlyBudget > 0 ? "Update monthly limit" : "Set monthly limit"}</h3>
+            <p>This limit is used to measure your spending each month.</p>
+          </div>
+          <span className="income-plus">+</span>
+        </div>
+        <form className="income-form budget-form" onSubmit={onSaveBudget}>
+          <div className="income-field">
+            <label htmlFor="monthly-budget">Monthly spending limit (R$)</label>
+            <input
+              id="monthly-budget"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="e.g. 4000.00"
+              value={budgetForm}
+              onChange={(event) => setBudgetForm(event.target.value)}
+              required
+            />
+          </div>
+          <div className="income-form-actions">
+            <button type="submit" className="add-income-button">
+              Save monthly limit
+            </button>
+          </div>
+        </form>
+      </article>
+    </section>
+  );
+}
+
+function UpcomingPaymentsManagement({ payments, setPayments, today }) {
+  const createEmptyForm = () => ({
+    description: "",
+    amount: "",
+    date: today,
+    paymentMethod: "",
+  });
+  const [paymentForm, setPaymentForm] = useState(createEmptyForm);
+  const [editingPaymentId, setEditingPaymentId] = useState(null);
+  const sortedPayments = [...payments].sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+  function resetForm() {
+    setPaymentForm(createEmptyForm());
+    setEditingPaymentId(null);
+  }
+
+  function handleSavePayment(event) {
+    event.preventDefault();
+
+    if (editingPaymentId) {
+      setPayments((previousPayments) =>
+        previousPayments.map((payment) =>
+          payment.id === editingPaymentId
+            ? { ...payment, ...paymentForm }
+            : payment
+        )
+      );
+    } else {
+      setPayments((previousPayments) => [
+        ...previousPayments,
+        { id: crypto.randomUUID(), ...paymentForm },
+      ]);
+    }
+
+    resetForm();
+  }
+
+  function handleEditPayment(payment) {
+    setPaymentForm({
+      description: payment.description,
+      amount: payment.amount,
+      date: payment.date,
+      paymentMethod: payment.paymentMethod,
+    });
+    setEditingPaymentId(payment.id);
+    document.getElementById("scheduled-payment-description")?.focus();
+  }
+
+  function handleDeletePayment(paymentId) {
+    if (!window.confirm("Delete this scheduled payment? This action cannot be undone.")) {
+      return;
+    }
+
+    setPayments((previousPayments) =>
+      previousPayments.filter((payment) => payment.id !== paymentId)
+    );
+
+    if (editingPaymentId === paymentId) {
+      resetForm();
+    }
+  }
+
+  return (
+    <section className="dashboard-content income-content">
+      <div className="income-welcome">
+        <div>
+          <span className="income-eyebrow">FINANCIAL PLANNING</span>
+          <h2>Upcoming payments</h2>
+          <p>Schedule future payments so you can prepare ahead.</p>
+        </div>
+        <span className="demo-label">PAYMENT SCHEDULE</span>
+      </div>
+
+      <article className="dashboard-panel income-form-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>{editingPaymentId ? "Edit Payment" : "Schedule a Payment"}</h3>
+            <p>
+              {editingPaymentId
+                ? "Update the scheduled payment details."
+                : "Add a future payment to your schedule."}
+            </p>
+          </div>
+          <span className="payment-plus">{editingPaymentId ? "✎" : "+"}</span>
+        </div>
+
+        <form
+          className="income-form"
+          onSubmit={handleSavePayment}
+        >
+          <div className="income-field">
+            <label htmlFor="scheduled-payment-description">Description</label>
+            <input
+              id="scheduled-payment-description"
+              type="text"
+              placeholder="e.g. Electricity bill"
+              value={paymentForm.description}
+              onChange={(event) =>
+                setPaymentForm({
+                  ...paymentForm,
+                  description: event.target.value,
+                })
+              }
+              required
+            />
+          </div>
+          <div className="income-field">
+            <label htmlFor="scheduled-payment-amount">Amount (R$)</label>
+            <input
+              id="scheduled-payment-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={paymentForm.amount}
+              onChange={(event) =>
+                setPaymentForm({ ...paymentForm, amount: event.target.value })
+              }
+              required
+            />
+          </div>
+          <div className="income-field">
+            <label htmlFor="scheduled-payment-date">Payment date</label>
+            <input
+              id="scheduled-payment-date"
+              type="date"
+              value={paymentForm.date}
+              onChange={(event) =>
+                setPaymentForm({ ...paymentForm, date: event.target.value })
+              }
+              required
+            />
+          </div>
+          <div className="income-field">
+            <label htmlFor="scheduled-payment-method">Payment method</label>
+            <select
+              id="scheduled-payment-method"
+              value={paymentForm.paymentMethod}
+              onChange={(event) =>
+                setPaymentForm({
+                  ...paymentForm,
+                  paymentMethod: event.target.value,
+                })
+              }
+              required
+            >
+              <option value="">Select a payment method</option>
+              <option value="Credit card">Credit card</option>
+              <option value="Debit card">Debit card</option>
+              <option value="Cash">Cash</option>
+              <option value="Pix">Pix</option>
+              <option value="Bank transfer">Bank transfer</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div className="income-form-actions expense-form-actions">
+            {editingPaymentId && (
+              <button
+                type="button"
+                className="cancel-expense-button"
+                onClick={resetForm}
+              >
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="add-payment-button">
+              {editingPaymentId ? "Save Changes" : "+ Schedule Payment"}
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article className="dashboard-panel income-records-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>Scheduled Payments</h3>
+            <p>Your upcoming and overdue planned payments.</p>
+          </div>
+          <Icon type="calendar" />
+        </div>
+
+        {sortedPayments.length > 0 ? (
+          <div className="income-record-list">
+            {sortedPayments.map((payment) => {
+              const status =
+                payment.date < today
+                  ? "Overdue"
+                  : payment.date === today
+                    ? "Due today"
+                    : "Upcoming";
+
+              return (
+                <div className="payment-record" key={payment.id}>
+                  <div className="payment-record-icon">
+                    <Icon type="calendar" />
+                  </div>
+                  <div className="income-record-info">
+                    <strong>{payment.description}</strong>
+                    <span>
+                      {payment.paymentMethod} ·{" "}
+                      {new Date(`${payment.date}T12:00:00`).toLocaleDateString(
+                        "pt-BR"
+                      )}
+                    </span>
+                  </div>
+                  <div className="payment-record-status">
+                    <span className={`payment-status ${status.toLowerCase().replace(" ", "-")}`}>
+                      {status}
+                    </span>
+                    <strong className="payment-record-amount">
+                      {Number(payment.amount).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </strong>
+                  </div>
+                  <div className="expense-record-actions">
+                    <button
+                      type="button"
+                      onClick={() => handleEditPayment(payment)}
+                      aria-label={`Edit ${payment.description}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePayment(payment.id)}
+                      aria-label={`Delete ${payment.description}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="income-empty-state">
+            <Icon type="calendar" />
+            <h4>No payments scheduled yet</h4>
+            <p>Scheduled payments will appear here.</p>
+          </div>
+        )}
+      </article>
+    </section>
   );
 }
 

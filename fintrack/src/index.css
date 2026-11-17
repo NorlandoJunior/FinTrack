@@ -1063,6 +1063,10 @@ a {
   background: var(--blue);
 }
 
+.budget-progress.over-budget > div {
+  background: #c25e5e;
+}
+
 .budget-footer {
   display: flex;
   flex-wrap: wrap;
@@ -1078,6 +1082,35 @@ a {
 
 .budget-footer strong {
   color: var(--blue);
+}
+
+.budget-footer strong.over-budget-text {
+  color: #c25e5e;
+}
+
+.panel-link-button {
+  margin-top: 12px;
+  padding: 0;
+  color: #547792;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.panel-link-button:hover,
+.panel-link-button:focus-visible {
+  color: #213448;
+  text-decoration: underline;
+}
+
+.panel-empty-message {
+  margin: 0;
+  padding: 5px 0 15px;
+  color: #8493a1;
+  font-size: 12px;
 }
 
 /* PAYMENTS AND TRANSACTIONS */
@@ -1126,6 +1159,120 @@ a {
 
 .transactions-panel {
   grid-column: 1 / -1;
+}
+
+.budget-summary-card .income-summary-icon {
+  color: #547792;
+  background: #e6edf2;
+}
+
+.budget-detail-panel .panel-heading {
+  margin-bottom: 20px;
+}
+
+.budget-detail-panel .budget-progress {
+  height: 12px;
+}
+
+.budget-form {
+  align-items: end;
+}
+
+.budget-form .income-field {
+  max-width: 460px;
+}
+
+.payment-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #547792;
+  background: #e6edf2;
+  border-radius: 12px;
+  font-size: 23px;
+}
+
+.add-payment-button {
+  min-height: 46px;
+  padding: 0 24px;
+  color: #ffffff;
+  background: #547792;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.add-payment-button:hover,
+.add-payment-button:focus-visible {
+  background: #213448;
+}
+
+.add-payment-button:focus-visible {
+  outline: 3px solid #94b4c1;
+  outline-offset: 2px;
+}
+
+.payment-record {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 0;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.payment-record:last-child {
+  border-bottom: none;
+}
+
+.payment-record-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  color: #547792;
+  background: #e6edf2;
+  border-radius: 12px;
+}
+
+.payment-record-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.payment-status {
+  padding: 4px 8px;
+  color: #45647d;
+  background: #e6edf2;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.payment-status.due-today {
+  color: #9c6a19;
+  background: #fff3d8;
+}
+
+.payment-status.overdue {
+  color: #a84747;
+  background: #f9e8e7;
+}
+
+.payment-record-amount {
+  color: #213448;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 /* OTHER TABS */
@@ -1798,6 +1945,10 @@ a {
   outline-offset: 2px;
 }
 
+.income-record-actions {
+  margin-left: 0;
+}
+
 @media (max-width: 600px) {
   .expense-welcome {
     align-items: flex-start;
@@ -1819,7 +1970,8 @@ a {
   }
 
   .expense-record,
-  .income-record {
+  .income-record,
+  .payment-record {
     flex-wrap: wrap;
   }
 
@@ -1829,9 +1981,14 @@ a {
   }
 
   .expense-record-actions,
-  .income-record-actions {
+  .income-record-actions,
+  .payment-record .expense-record-actions {
     width: 100%;
     justify-content: flex-end;
+    margin-left: 56px;
+  }
+
+  .payment-record-status {
     margin-left: 56px;
   }
 }
