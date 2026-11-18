@@ -160,6 +160,17 @@ function Dashboard() {
     }
   });
 
+  const [installmentPurchases, setInstallmentPurchases] = useState(() => {
+    try {
+      const savedPurchases = JSON.parse(
+        localStorage.getItem("fintrack-installments")
+      );
+      return Array.isArray(savedPurchases) ? savedPurchases : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Save income records
   React.useEffect(() => {
     localStorage.setItem("fintrack-incomes", JSON.stringify(incomes));
@@ -179,6 +190,13 @@ function Dashboard() {
       JSON.stringify(scheduledPayments)
     );
   }, [scheduledPayments]);
+
+  React.useEffect(() => {
+    localStorage.setItem(
+      "fintrack-installments",
+      JSON.stringify(installmentPurchases)
+    );
+  }, [installmentPurchases]);
 
   // Calculate total income
   const totalIncome = incomes.reduce(
@@ -863,6 +881,14 @@ function Dashboard() {
             setExpenses={setExpenses}
           />
 
+        ) : activeTab === "installments" ? (
+
+          <InstallmentManagement
+            purchases={installmentPurchases}
+            setPurchases={setInstallmentPurchases}
+            today={today}
+          />
+
         ) : activeTab === "budget" ? (
 
           <BudgetManagement
@@ -1027,6 +1053,243 @@ function BudgetManagement({
           </div>
         </form>
       </article>
+    </section>
+  );
+}
+
+
+function InstallmentManagement({ purchases, setPurchases, today }) {
+  const createEmptyForm = () => ({
+    description: "",
+    totalAmount: "",
+    installmentsCount: "2",
+    firstPaymentDate: today,
+    paymentMethod: "Credit card",
+  });
+  const [purchaseForm, setPurchaseForm] = useState(createEmptyForm);
+  const [editingPurchaseId, setEditingPurchaseId] = useState(null);
+
+  const formatCurrency = (value) =>
+    Number(value).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+
+  // Add each month without allowing dates such as January 31 to skip a month.
+  function addMonths(dateString, monthsToAdd) {
+    const [year, month, day] = dateString.split("-").map(Number);
+    const targetMonth = month - 1 + monthsToAdd;
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const normalizedMonth = ((targetMonth % 12) + 12) % 12;
+    const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+    const safeDay = Math.min(day, lastDay);
+    return `${targetYear}-${String(normalizedMonth + 1).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
+  }
+
+  function buildInstallments(purchase) {
+    const count = Number(purchase.installmentsCount);
+    const totalCents = Math.round(Number(purchase.totalAmount) * 100);
+    const baseCents = Math.floor(totalCents / count);
+    const remainder = totalCents - baseCents * count;
+
+    return Array.from({ length: count }, (_, index) => ({
+      number: index + 1,
+      amount: (baseCents + (index < remainder ? 1 : 0)) / 100,
+      date: addMonths(purchase.firstPaymentDate, index),
+      paid: (purchase.paidInstallments || []).includes(index + 1),
+    }));
+  }
+
+  const allInstallments = purchases.flatMap((purchase) =>
+    buildInstallments(purchase).map((installment) => ({
+      ...installment,
+      purchaseId: purchase.id,
+      description: purchase.description,
+      paymentMethod: purchase.paymentMethod,
+      installmentsCount: Number(purchase.installmentsCount),
+    }))
+  ).sort((a, b) => a.date.localeCompare(b.date));
+
+  const pendingInstallments = allInstallments.filter((item) => !item.paid);
+  const pendingAmount = pendingInstallments.reduce(
+    (total, item) => total + item.amount,
+    0
+  );
+  const nextInstallment = pendingInstallments.find((item) => item.date >= today);
+
+  function resetForm() {
+    setPurchaseForm(createEmptyForm());
+    setEditingPurchaseId(null);
+  }
+
+  function handleSavePurchase(event) {
+    event.preventDefault();
+    const count = Number(purchaseForm.installmentsCount);
+    const total = Number(purchaseForm.totalAmount);
+    if (!Number.isInteger(count) || count < 2 || count > 48 || total <= 0) return;
+
+    if (editingPurchaseId) {
+      setPurchases((previous) => previous.map((purchase) =>
+        purchase.id === editingPurchaseId
+          ? { ...purchase, ...purchaseForm, paidInstallments: purchase.paidInstallments || [] }
+          : purchase
+      ));
+    } else {
+      setPurchases((previous) => [
+        ...previous,
+        { id: crypto.randomUUID(), ...purchaseForm, paidInstallments: [] },
+      ]);
+    }
+    resetForm();
+  }
+
+  function handleEditPurchase(purchase) {
+    setPurchaseForm({
+      description: purchase.description,
+      totalAmount: String(purchase.totalAmount),
+      installmentsCount: String(purchase.installmentsCount),
+      firstPaymentDate: purchase.firstPaymentDate,
+      paymentMethod: purchase.paymentMethod,
+    });
+    setEditingPurchaseId(purchase.id);
+    document.getElementById("installment-description")?.focus();
+  }
+
+  function handleDeletePurchase(purchaseId) {
+    if (!window.confirm("Delete this installment purchase and all its scheduled payments?")) return;
+    setPurchases((previous) => previous.filter((purchase) => purchase.id !== purchaseId));
+    if (editingPurchaseId === purchaseId) resetForm();
+  }
+
+  function toggleInstallmentPaid(purchaseId, installmentNumber) {
+    setPurchases((previous) => previous.map((purchase) => {
+      if (purchase.id !== purchaseId) return purchase;
+      const paid = new Set(purchase.paidInstallments || []);
+      if (paid.has(installmentNumber)) paid.delete(installmentNumber);
+      else paid.add(installmentNumber);
+      return { ...purchase, paidInstallments: [...paid] };
+    }));
+  }
+
+  return (
+    <section className="dashboard-content income-content installment-content">
+      <div className="income-welcome">
+        <div>
+          <span className="income-eyebrow">FINANCIAL PLANNING</span>
+          <h2>Manage your installments</h2>
+          <p>Register purchases and keep track of payments across future months.</p>
+        </div>
+        <span className="demo-label">INSTALLMENT MANAGEMENT</span>
+      </div>
+
+      <div className="installment-summary-grid">
+        <article className="installment-summary-card installment-summary-primary">
+          <div className="installment-summary-icon"><Icon type="installments" /></div>
+          <div><span>Pending amount</span><strong>{formatCurrency(pendingAmount)}</strong><small>{pendingInstallments.length} payments remaining</small></div>
+        </article>
+        <article className="installment-summary-card">
+          <div className="installment-summary-icon"><Icon type="receipt" /></div>
+          <div><span>Registered purchases</span><strong>{purchases.length}</strong><small>Installment purchases</small></div>
+        </article>
+        <article className="installment-summary-card">
+          <div className="installment-summary-icon"><Icon type="calendar" /></div>
+          <div><span>Next payment</span><strong>{nextInstallment ? formatCurrency(nextInstallment.amount) : formatCurrency(0)}</strong><small>{nextInstallment ? new Date(`${nextInstallment.date}T12:00:00`).toLocaleDateString("pt-BR") : "No pending payments"}</small></div>
+        </article>
+      </div>
+
+      <article className="dashboard-panel income-form-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>{editingPurchaseId ? "Edit Purchase" : "Register an Installment Purchase"}</h3>
+            <p>Enter the purchase details to automatically calculate each payment.</p>
+          </div>
+          <span className="installment-plus">{editingPurchaseId ? "✎" : "+"}</span>
+        </div>
+        <form className="income-form" onSubmit={handleSavePurchase}>
+          <div className="income-field installment-field-wide">
+            <label htmlFor="installment-description">Purchase description</label>
+            <input id="installment-description" type="text" placeholder="e.g. Laptop, smartphone, furniture" value={purchaseForm.description} onChange={(event) => setPurchaseForm({ ...purchaseForm, description: event.target.value })} required />
+          </div>
+          <div className="income-field">
+            <label htmlFor="installment-total">Total purchase amount (R$)</label>
+            <input id="installment-total" type="number" min="0.01" step="0.01" placeholder="0.00" value={purchaseForm.totalAmount} onChange={(event) => setPurchaseForm({ ...purchaseForm, totalAmount: event.target.value })} required />
+          </div>
+          <div className="income-field">
+            <label htmlFor="installment-count">Number of installments</label>
+            <select id="installment-count" value={purchaseForm.installmentsCount} onChange={(event) => setPurchaseForm({ ...purchaseForm, installmentsCount: event.target.value })}>
+              {Array.from({ length: 47 }, (_, index) => index + 2).map((count) => <option key={count} value={count}>{count} installments</option>)}
+            </select>
+          </div>
+          <div className="income-field">
+            <label htmlFor="installment-first-date">First payment date</label>
+            <input id="installment-first-date" type="date" value={purchaseForm.firstPaymentDate} onChange={(event) => setPurchaseForm({ ...purchaseForm, firstPaymentDate: event.target.value })} required />
+          </div>
+          <div className="income-field">
+            <label htmlFor="installment-method">Payment method</label>
+            <select id="installment-method" value={purchaseForm.paymentMethod} onChange={(event) => setPurchaseForm({ ...purchaseForm, paymentMethod: event.target.value })} required>
+              <option value="Credit card">Credit card</option><option value="Store financing">Store financing</option><option value="Other">Other</option>
+            </select>
+          </div>
+          {purchaseForm.totalAmount && Number(purchaseForm.totalAmount) > 0 && (
+            <div className="installment-calculation">
+              <span>Estimated installment amount</span>
+              <strong>{formatCurrency(Math.round(Number(purchaseForm.totalAmount) * 100 / Number(purchaseForm.installmentsCount)) / 100)}</strong>
+              <small>{purchaseForm.installmentsCount} payments · Total {formatCurrency(purchaseForm.totalAmount)}</small>
+            </div>
+          )}
+          <div className="income-form-actions expense-form-actions">
+            {editingPurchaseId && <button type="button" className="cancel-expense-button" onClick={resetForm}>Cancel</button>}
+            <button type="submit" className="add-installment-button">{editingPurchaseId ? "Save Changes" : "+ Add Purchase"}</button>
+          </div>
+        </form>
+      </article>
+
+      <article className="dashboard-panel income-records-panel">
+        <div className="income-panel-heading">
+          <div><h3>Scheduled Installments</h3><p>Review upcoming payments and mark installments as paid.</p></div>
+          <Icon type="calendar" />
+        </div>
+        {allInstallments.length ? (
+          <div className="installment-schedule-list">
+            {allInstallments.map((item) => {
+              const status = item.paid ? "Paid" : item.date < today ? "Overdue" : item.date === today ? "Due today" : "Upcoming";
+              return (
+                <div className={`installment-schedule-item ${item.paid ? "is-paid" : ""}`} key={`${item.purchaseId}-${item.number}`}>
+                  <div className="installment-record-icon"><Icon type="installments" /></div>
+                  <div className="income-record-info">
+                    <strong>{item.description}</strong>
+                    <span>Installment {item.number} of {item.installmentsCount} · {item.paymentMethod} · {new Date(`${item.date}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+                  </div>
+                  <div className="installment-record-details">
+                    <strong>{formatCurrency(item.amount)}</strong>
+                    <span className={`installment-status ${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>
+                  </div>
+                  <button type="button" className="installment-paid-button" onClick={() => toggleInstallmentPaid(item.purchaseId, item.number)}>{item.paid ? "Undo" : "Mark paid"}</button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="income-empty-state"><Icon type="installments" /><h4>No installment purchases yet</h4><p>Your registered purchases and scheduled payments will appear here.</p></div>
+        )}
+      </article>
+
+      {purchases.length > 0 && (
+        <article className="dashboard-panel income-records-panel">
+          <div className="income-panel-heading"><div><h3>Your Purchases</h3><p>Edit or remove a purchase and its payment schedule.</p></div><Icon type="receipt" /></div>
+          <div className="installment-purchase-list">
+            {purchases.map((purchase) => {
+              const schedule = buildInstallments(purchase);
+              const paidCount = schedule.filter((item) => item.paid).length;
+              return <div className="installment-purchase-item" key={purchase.id}>
+                <div className="income-record-info"><strong>{purchase.description}</strong><span>{purchase.paymentMethod} · {purchase.installmentsCount} installments · {paidCount} paid</span></div>
+                <strong className="installment-purchase-total">{formatCurrency(purchase.totalAmount)}</strong>
+                <div className="expense-record-actions"><button type="button" onClick={() => handleEditPurchase(purchase)}>Edit</button><button type="button" onClick={() => handleDeletePurchase(purchase.id)}>Delete</button></div>
+              </div>;
+            })}
+          </div>
+        </article>
+      )}
     </section>
   );
 }
