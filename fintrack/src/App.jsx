@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./App.css";
 import "./index.css";
 
 // Ícones das funcionalidades
@@ -43,7 +44,7 @@ function Icon({ type }) {
         <path d="M16 3v4M8 3v4M3 10h18M7 14h10M7 17h7" />
       </>
     ),
-     installments: (
+    installments: (
       <>
         <rect x="2" y="5" width="20" height="14" rx="2" />
         <path d="M2 10h20M7 15h3M15 15h2" />
@@ -97,9 +98,9 @@ function SectionLabel({ children }) {
   return <div className="section-label">{children}</div>;
 }
 
-
 function Dashboard() {
   const [expanded, setExpanded] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // =========================================
@@ -108,10 +109,7 @@ function Dashboard() {
 
   const [incomes, setIncomes] = useState(() => {
     try {
-      const savedIncomes = JSON.parse(
-        localStorage.getItem("fintrack-incomes")
-      );
-
+      const savedIncomes = JSON.parse(localStorage.getItem("fintrack-incomes"));
       return Array.isArray(savedIncomes) ? savedIncomes : [];
     } catch {
       return [];
@@ -128,10 +126,7 @@ function Dashboard() {
 
   const [expenses, setExpenses] = useState(() => {
     try {
-      const savedExpenses = JSON.parse(
-        localStorage.getItem("fintrack-expenses")
-      );
-
+      const savedExpenses = JSON.parse(localStorage.getItem("fintrack-expenses"));
       return Array.isArray(savedExpenses) ? savedExpenses : [];
     } catch {
       return [];
@@ -144,16 +139,11 @@ function Dashboard() {
   });
   const [budgetForm, setBudgetForm] = useState(() => {
     const savedBudget = Number(localStorage.getItem("fintrack-monthly-budget"));
-    return Number.isFinite(savedBudget) && savedBudget > 0
-      ? String(savedBudget)
-      : "";
+    return Number.isFinite(savedBudget) && savedBudget > 0 ? String(savedBudget) : "";
   });
   const [scheduledPayments, setScheduledPayments] = useState(() => {
     try {
-      const savedPayments = JSON.parse(
-        localStorage.getItem("fintrack-scheduled-payments")
-      );
-
+      const savedPayments = JSON.parse(localStorage.getItem("fintrack-scheduled-payments"));
       return Array.isArray(savedPayments) ? savedPayments : [];
     } catch {
       return [];
@@ -162,16 +152,13 @@ function Dashboard() {
 
   const [installmentPurchases, setInstallmentPurchases] = useState(() => {
     try {
-      const savedPurchases = JSON.parse(
-        localStorage.getItem("fintrack-installments")
-      );
+      const savedPurchases = JSON.parse(localStorage.getItem("fintrack-installments"));
       return Array.isArray(savedPurchases) ? savedPurchases : [];
     } catch {
       return [];
     }
   });
 
-  // Save income records
   React.useEffect(() => {
     localStorage.setItem("fintrack-incomes", JSON.stringify(incomes));
   }, [incomes]);
@@ -198,7 +185,6 @@ function Dashboard() {
     );
   }, [installmentPurchases]);
 
-  // Calculate total income
   const totalIncome = incomes.reduce(
     (total, income) => total + Number(income.amount),
     0
@@ -207,10 +193,7 @@ function Dashboard() {
   const currentMonth = `${currentDate.getFullYear()}-${String(
     currentDate.getMonth() + 1
   ).padStart(2, "0")}`;
-  const today = `${currentMonth}-${String(currentDate.getDate()).padStart(
-    2,
-    "0"
-  )}`;
+  const today = `${currentMonth}-${String(currentDate.getDate()).padStart(2, "0")}`;
   const currentMonthIncomes = incomes.filter((income) =>
     income.date.startsWith(currentMonth)
   );
@@ -260,9 +243,7 @@ function Dashboard() {
     if (editingIncomeId) {
       setIncomes((previousIncomes) =>
         previousIncomes.map((income) =>
-          income.id === editingIncomeId
-            ? { ...income, ...incomeForm }
-            : income
+          income.id === editingIncomeId ? { ...income, ...incomeForm } : income
         )
       );
     } else {
@@ -315,20 +296,29 @@ function Dashboard() {
     { id: "reports", label: "Financial Reports", icon: "reports" },
   ];
 
-  const currentPage = navigation.find(
-    (item) => item.id === activeTab
-  );
+  const currentPage = navigation.find((item) => item.id === activeTab);
+
+  const isMobile = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 760px)").matches;
 
   return (
     <div
       className={`dashboard-layout ${
         expanded ? "sidebar-expanded" : "sidebar-collapsed"
-      }`}
+      } ${mobileSidebarOpen ? "mobile-sidebar-open" : ""}`}
     >
+      {mobileSidebarOpen && (
+        <button
+          className="dashboard-sidebar-backdrop"
+          type="button"
+          aria-label="Close dashboard navigation"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
 
       {/* SIDEBAR */}
-      <aside className="dashboard-sidebar">
-
+      <aside className="dashboard-sidebar" aria-label="Dashboard navigation">
         <div className="sidebar-top">
           <a href="/" className="dashboard-brand">
             {expanded ? "FinTrack" : "F"}
@@ -336,9 +326,31 @@ function Dashboard() {
 
           <button
             className="sidebar-toggle"
-            onClick={() => setExpanded(!expanded)}
-            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-            title={expanded ? "Collapse menu" : "Expand menu"}
+            onClick={() => {
+              if (isMobile()) {
+                setMobileSidebarOpen((open) => !open);
+                setExpanded(true);
+              } else {
+                setExpanded((open) => !open);
+              }
+            }}
+            aria-label={
+              isMobile()
+                ? mobileSidebarOpen
+                  ? "Close dashboard navigation"
+                  : "Open dashboard navigation"
+                : expanded
+                ? "Collapse sidebar"
+                : "Expand sidebar"
+            }
+            aria-expanded={isMobile() ? mobileSidebarOpen : expanded}
+            title={
+              isMobile()
+                ? "Toggle navigation"
+                : expanded
+                ? "Collapse menu"
+                : "Expand menu"
+            }
           >
             <Icon type="menu" />
           </button>
@@ -348,18 +360,16 @@ function Dashboard() {
           {navigation.map((item) => (
             <button
               key={item.id}
-              className={`sidebar-link ${
-                activeTab === item.id ? "active" : ""
-              }`}
-              onClick={() => setActiveTab(item.id)}
+              className={`sidebar-link ${activeTab === item.id ? "active" : ""}`}
+              onClick={() => {
+                setActiveTab(item.id);
+                setMobileSidebarOpen(false);
+              }}
               title={!expanded ? item.label : undefined}
               aria-current={activeTab === item.id ? "page" : undefined}
             >
               <Icon type={item.icon} />
-
-              {expanded && (
-                <span>{item.label}</span>
-              )}
+              {expanded && <span>{item.label}</span>}
             </button>
           ))}
         </nav>
@@ -367,18 +377,32 @@ function Dashboard() {
         <div className="sidebar-bottom">
           {expanded && <span>Personal Finance</span>}
         </div>
-
       </aside>
 
       {/* MAIN CONTENT */}
       <main className="dashboard-main">
-
         <header className="dashboard-topbar">
-          <div>
-            <span className="dashboard-eyebrow">
-              FINTRACK / OVERVIEW
-            </span>
-            <h1>{currentPage.label}</h1>
+          <div className="dashboard-heading-group">
+            <button
+              className="dashboard-mobile-menu"
+              type="button"
+              aria-label={
+                mobileSidebarOpen
+                  ? "Close dashboard navigation"
+                  : "Open dashboard navigation"
+              }
+              aria-expanded={mobileSidebarOpen}
+              onClick={() => {
+                setExpanded(true);
+                setMobileSidebarOpen((open) => !open);
+              }}
+            >
+              <Icon type="menu" />
+            </button>
+            <div className="dashboard-heading-copy">
+              <span className="dashboard-eyebrow">FINTRACK / OVERVIEW</span>
+              <h1>{currentPage.label}</h1>
+            </div>
           </div>
 
           <div className="dashboard-user">
@@ -392,23 +416,17 @@ function Dashboard() {
         ===================================== */}
 
         {activeTab === "dashboard" ? (
-
           <section className="dashboard-content">
-
             <div className="welcome-section">
               <div>
                 <h2>Welcome back!</h2>
-                <p>
-                  Here is an overview of your financial situation.
-                </p>
+                <p>Here is an overview of your financial situation.</p>
               </div>
-
               <span className="demo-label">THIS MONTH</span>
             </div>
 
             {/* FINANCIAL SUMMARY */}
             <div className="financial-cards">
-
               <article className="financial-card balance-card">
                 <span>Available Balance</span>
                 <strong>
@@ -441,19 +459,16 @@ function Dashboard() {
                 </strong>
                 <small>This month</small>
               </article>
-
             </div>
 
             {/* LOWER CONTENT */}
             <div className="dashboard-grid">
-
               <article className="dashboard-panel spending-panel">
                 <div className="panel-heading">
                   <div>
                     <h3>Monthly Budget</h3>
                     <p>Your spending progress</p>
                   </div>
-
                   <Icon type="chart" />
                 </div>
 
@@ -497,9 +512,7 @@ function Dashboard() {
                         )}% used`
                       : "No monthly limit set"}
                   </span>
-                  <strong
-                    className={remainingBudget < 0 ? "over-budget-text" : ""}
-                  >
+                  <strong className={remainingBudget < 0 ? "over-budget-text" : ""}>
                     {monthlyBudget
                       ? `${remainingBudget.toLocaleString("pt-BR", {
                           style: "currency",
@@ -523,7 +536,6 @@ function Dashboard() {
                     <h3>Upcoming Payments</h3>
                     <p>Your next financial commitments</p>
                   </div>
-
                   <Icon type="calendar" />
                 </div>
 
@@ -566,7 +578,6 @@ function Dashboard() {
                     <h3>Recent Transactions</h3>
                     <p>Your latest financial activity</p>
                   </div>
-
                   <Icon type="receipt" />
                 </div>
 
@@ -600,60 +611,39 @@ function Dashboard() {
                   </p>
                 )}
               </article>
-
             </div>
           </section>
-
         ) : activeTab === "income" ? (
-
           /* =====================================
              INCOME MANAGEMENT
           ===================================== */
-
           <section className="dashboard-content income-content">
-
-            {/* INCOME HEADER */}
             <div className="income-welcome">
               <div>
-                <span className="income-eyebrow">
-                  FINANCIAL MANAGEMENT
-                </span>
+                <span className="income-eyebrow">FINANCIAL MANAGEMENT</span>
                 <h2>Manage your income</h2>
-                <p>
-                  Track and organize the money you receive.
-                </p>
+                <p>Track and organize the money you receive.</p>
               </div>
-
-              <span className="demo-label">
-                INCOME MANAGEMENT
-              </span>
+              <span className="demo-label">INCOME MANAGEMENT</span>
             </div>
 
-            {/* TOTAL INCOME */}
             <article className="income-summary-card">
               <div className="income-summary-icon">
                 <Icon type="wallet" />
               </div>
-
               <div>
                 <span>Total Income</span>
-
                 <strong>
                   {totalIncome.toLocaleString("pt-BR", {
                     style: "currency",
                     currency: "BRL",
                   })}
                 </strong>
-
-                <small>
-                  {incomes.length} income records
-                </small>
+                <small>{incomes.length} income records</small>
               </div>
             </article>
 
-            {/* ADD INCOME FORM */}
             <article className="dashboard-panel income-form-panel">
-
               <div className="income-panel-heading">
                 <div>
                   <h3>{editingIncomeId ? "Edit Income" : "Add New Income"}</h3>
@@ -663,22 +653,12 @@ function Dashboard() {
                       : "Enter the details of the income you received."}
                   </p>
                 </div>
-
-                <span className="income-plus">
-                  {editingIncomeId ? "✎" : "+"}
-                </span>
+                <span className="income-plus">{editingIncomeId ? "✎" : "+"}</span>
               </div>
 
-              <form
-                className="income-form"
-                onSubmit={handleAddIncome}
-              >
-
+              <form className="income-form" onSubmit={handleAddIncome}>
                 <div className="income-field">
-                  <label htmlFor="income-description">
-                    Description
-                  </label>
-
+                  <label htmlFor="income-description">Description</label>
                   <input
                     id="income-description"
                     type="text"
@@ -695,10 +675,7 @@ function Dashboard() {
                 </div>
 
                 <div className="income-field">
-                  <label htmlFor="income-amount">
-                    Amount (R$)
-                  </label>
-
+                  <label htmlFor="income-amount">Amount (R$)</label>
                   <input
                     id="income-amount"
                     type="number"
@@ -717,10 +694,7 @@ function Dashboard() {
                 </div>
 
                 <div className="income-field">
-                  <label htmlFor="income-category">
-                    Category
-                  </label>
-
+                  <label htmlFor="income-category">Category</label>
                   <select
                     id="income-category"
                     value={incomeForm.category}
@@ -742,10 +716,7 @@ function Dashboard() {
                 </div>
 
                 <div className="income-field">
-                  <label htmlFor="income-date">
-                    Date
-                  </label>
-
+                  <label htmlFor="income-date">Date</label>
                   <input
                     id="income-date"
                     type="date"
@@ -770,53 +741,33 @@ function Dashboard() {
                       Cancel
                     </button>
                   )}
-                  <button
-                    type="submit"
-                    className="add-income-button"
-                  >
+                  <button type="submit" className="add-income-button">
                     {editingIncomeId ? "Save Changes" : "+ Add Income"}
                   </button>
                 </div>
-
               </form>
             </article>
 
-            {/* INCOME RECORDS */}
             <article className="dashboard-panel income-records-panel">
-
               <div className="income-panel-heading">
                 <div>
                   <h3>Income Records</h3>
-                  <p>
-                    All your registered income transactions.
-                  </p>
+                  <p>All your registered income transactions.</p>
                 </div>
-
                 <Icon type="receipt" />
               </div>
 
               {incomes.length > 0 ? (
-
                 <div className="income-record-list">
-
                   {[...incomes]
                     .sort((a, b) => b.date.localeCompare(a.date))
                     .map((income) => (
-
-                      <div
-                        className="income-record"
-                        key={income.id}
-                      >
-
+                      <div className="income-record" key={income.id}>
                         <div className="income-record-icon">
                           <Icon type="wallet" />
                         </div>
-
                         <div className="income-record-info">
-                          <strong>
-                            {income.description}
-                          </strong>
-
+                          <strong>{income.description}</strong>
                           <span>
                             {income.category} ·{" "}
                             {new Date(
@@ -824,18 +775,13 @@ function Dashboard() {
                             ).toLocaleDateString("pt-BR")}
                           </span>
                         </div>
-
                         <strong className="income-record-amount">
                           +{" "}
-                          {Number(income.amount).toLocaleString(
-                            "pt-BR",
-                            {
-                              style: "currency",
-                              currency: "BRL",
-                            }
-                          )}
+                          {Number(income.amount).toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          })}
                         </strong>
-
                         <div className="expense-record-actions income-record-actions">
                           <button
                             type="button"
@@ -852,45 +798,27 @@ function Dashboard() {
                             Delete
                           </button>
                         </div>
-
                       </div>
                     ))}
-
                 </div>
-
               ) : (
-
                 <div className="income-empty-state">
                   <Icon type="wallet" />
                   <h4>No income records yet</h4>
-                  <p>
-                    Your registered income transactions will appear here.
-                  </p>
+                  <p>Your registered income transactions will appear here.</p>
                 </div>
-
               )}
-
             </article>
-
           </section>
-
         ) : activeTab === "expenses" ? (
-
-          <ExpenseManagement
-            expenses={expenses}
-            setExpenses={setExpenses}
-          />
-
+          <ExpenseManagement expenses={expenses} setExpenses={setExpenses} />
         ) : activeTab === "installments" ? (
-
           <InstallmentManagement
             purchases={installmentPurchases}
             setPurchases={setInstallmentPurchases}
             today={today}
           />
-
         ) : activeTab === "budget" ? (
-
           <BudgetManagement
             budgetForm={budgetForm}
             setBudgetForm={setBudgetForm}
@@ -900,44 +828,30 @@ function Dashboard() {
             budgetProgress={budgetProgress}
             onSaveBudget={handleSaveBudget}
           />
-
         ) : activeTab === "upcoming" ? (
-
           <UpcomingPaymentsManagement
             payments={scheduledPayments}
             setPayments={setScheduledPayments}
             today={today}
           />
-
         ) : (
-
           /* =====================================
              OTHER SECTIONS - UNDER DEVELOPMENT
           ===================================== */
-
           <section className="dashboard-content">
             <div className="dashboard-panel coming-soon">
-
               <div className="coming-soon-icon">
                 <Icon type={currentPage.icon} />
               </div>
-
               <h2>{currentPage.label}</h2>
-
               <p>
-                This section is part of the FinTrack project.
-                Its functionality will be implemented in upcoming development stages.
+                This section is part of the FinTrack project. Its functionality
+                will be implemented in upcoming development stages.
               </p>
-
-              <span className="demo-label">
-                UNDER DEVELOPMENT
-              </span>
-
+              <span className="demo-label">UNDER DEVELOPMENT</span>
             </div>
           </section>
-
         )}
-
       </main>
     </div>
   );
@@ -1011,9 +925,7 @@ function BudgetManagement({
             <span>
               {((monthlyExpenseTotal / monthlyBudget) * 100).toFixed(1)}% used
             </span>
-            <strong
-              className={remainingBudget < 0 ? "over-budget-text" : ""}
-            >
+            <strong className={remainingBudget < 0 ? "over-budget-text" : ""}>
               {remainingBudget.toLocaleString("pt-BR", {
                 style: "currency",
                 currency: "BRL",
@@ -1027,7 +939,9 @@ function BudgetManagement({
       <article className="dashboard-panel income-form-panel">
         <div className="income-panel-heading">
           <div>
-            <h3>{monthlyBudget > 0 ? "Update monthly limit" : "Set monthly limit"}</h3>
+            <h3>
+              {monthlyBudget > 0 ? "Update monthly limit" : "Set monthly limit"}
+            </h3>
             <p>This limit is used to measure your spending each month.</p>
           </div>
           <span className="income-plus">+</span>
@@ -1057,7 +971,6 @@ function BudgetManagement({
   );
 }
 
-
 function InstallmentManagement({ purchases, setPurchases, today }) {
   const createEmptyForm = () => ({
     description: "",
@@ -1075,7 +988,6 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
       currency: "BRL",
     });
 
-  // Add each month without allowing dates such as January 31 to skip a month.
   function addMonths(dateString, monthsToAdd) {
     const [year, month, day] = dateString.split("-").map(Number);
     const targetMonth = month - 1 + monthsToAdd;
@@ -1083,7 +995,9 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
     const normalizedMonth = ((targetMonth % 12) + 12) % 12;
     const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate();
     const safeDay = Math.min(day, lastDay);
-    return `${targetYear}-${String(normalizedMonth + 1).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
+    return `${targetYear}-${String(normalizedMonth + 1).padStart(2, "0")}-${String(
+      safeDay
+    ).padStart(2, "0")}`;
   }
 
   function buildInstallments(purchase) {
@@ -1100,15 +1014,17 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
     }));
   }
 
-  const allInstallments = purchases.flatMap((purchase) =>
-    buildInstallments(purchase).map((installment) => ({
-      ...installment,
-      purchaseId: purchase.id,
-      description: purchase.description,
-      paymentMethod: purchase.paymentMethod,
-      installmentsCount: Number(purchase.installmentsCount),
-    }))
-  ).sort((a, b) => a.date.localeCompare(b.date));
+  const allInstallments = purchases
+    .flatMap((purchase) =>
+      buildInstallments(purchase).map((installment) => ({
+        ...installment,
+        purchaseId: purchase.id,
+        description: purchase.description,
+        paymentMethod: purchase.paymentMethod,
+        installmentsCount: Number(purchase.installmentsCount),
+      }))
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const pendingInstallments = allInstallments.filter((item) => !item.paid);
   const pendingAmount = pendingInstallments.reduce(
@@ -1129,11 +1045,17 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
     if (!Number.isInteger(count) || count < 2 || count > 48 || total <= 0) return;
 
     if (editingPurchaseId) {
-      setPurchases((previous) => previous.map((purchase) =>
-        purchase.id === editingPurchaseId
-          ? { ...purchase, ...purchaseForm, paidInstallments: purchase.paidInstallments || [] }
-          : purchase
-      ));
+      setPurchases((previous) =>
+        previous.map((purchase) =>
+          purchase.id === editingPurchaseId
+            ? {
+                ...purchase,
+                ...purchaseForm,
+                paidInstallments: purchase.paidInstallments || [],
+              }
+            : purchase
+        )
+      );
     } else {
       setPurchases((previous) => [
         ...previous,
@@ -1156,19 +1078,28 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
   }
 
   function handleDeletePurchase(purchaseId) {
-    if (!window.confirm("Delete this installment purchase and all its scheduled payments?")) return;
-    setPurchases((previous) => previous.filter((purchase) => purchase.id !== purchaseId));
+    if (
+      !window.confirm(
+        "Delete this installment purchase and all its scheduled payments?"
+      )
+    )
+      return;
+    setPurchases((previous) =>
+      previous.filter((purchase) => purchase.id !== purchaseId)
+    );
     if (editingPurchaseId === purchaseId) resetForm();
   }
 
   function toggleInstallmentPaid(purchaseId, installmentNumber) {
-    setPurchases((previous) => previous.map((purchase) => {
-      if (purchase.id !== purchaseId) return purchase;
-      const paid = new Set(purchase.paidInstallments || []);
-      if (paid.has(installmentNumber)) paid.delete(installmentNumber);
-      else paid.add(installmentNumber);
-      return { ...purchase, paidInstallments: [...paid] };
-    }));
+    setPurchases((previous) =>
+      previous.map((purchase) => {
+        if (purchase.id !== purchaseId) return purchase;
+        const paid = new Set(purchase.paidInstallments || []);
+        if (paid.has(installmentNumber)) paid.delete(installmentNumber);
+        else paid.add(installmentNumber);
+        return { ...purchase, paidInstallments: [...paid] };
+      })
+    );
   }
 
   return (
@@ -1184,16 +1115,40 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
 
       <div className="installment-summary-grid">
         <article className="installment-summary-card installment-summary-primary">
-          <div className="installment-summary-icon"><Icon type="installments" /></div>
-          <div><span>Pending amount</span><strong>{formatCurrency(pendingAmount)}</strong><small>{pendingInstallments.length} payments remaining</small></div>
+          <div className="installment-summary-icon">
+            <Icon type="installments" />
+          </div>
+          <div>
+            <span>Pending amount</span>
+            <strong>{formatCurrency(pendingAmount)}</strong>
+            <small>{pendingInstallments.length} payments remaining</small>
+          </div>
         </article>
         <article className="installment-summary-card">
-          <div className="installment-summary-icon"><Icon type="receipt" /></div>
-          <div><span>Registered purchases</span><strong>{purchases.length}</strong><small>Installment purchases</small></div>
+          <div className="installment-summary-icon">
+            <Icon type="receipt" />
+          </div>
+          <div>
+            <span>Registered purchases</span>
+            <strong>{purchases.length}</strong>
+            <small>Installment purchases</small>
+          </div>
         </article>
         <article className="installment-summary-card">
-          <div className="installment-summary-icon"><Icon type="calendar" /></div>
-          <div><span>Next payment</span><strong>{nextInstallment ? formatCurrency(nextInstallment.amount) : formatCurrency(0)}</strong><small>{nextInstallment ? new Date(`${nextInstallment.date}T12:00:00`).toLocaleDateString("pt-BR") : "No pending payments"}</small></div>
+          <div className="installment-summary-icon">
+            <Icon type="calendar" />
+          </div>
+          <div>
+            <span>Next payment</span>
+            <strong>
+              {nextInstallment ? formatCurrency(nextInstallment.amount) : formatCurrency(0)}
+            </strong>
+            <small>
+              {nextInstallment
+                ? new Date(`${nextInstallment.date}T12:00:00`).toLocaleDateString("pt-BR")
+                : "No pending payments"}
+            </small>
+          </div>
         </article>
       </div>
 
@@ -1208,84 +1163,204 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
         <form className="income-form" onSubmit={handleSavePurchase}>
           <div className="income-field installment-field-wide">
             <label htmlFor="installment-description">Purchase description</label>
-            <input id="installment-description" type="text" placeholder="e.g. Laptop, smartphone, furniture" value={purchaseForm.description} onChange={(event) => setPurchaseForm({ ...purchaseForm, description: event.target.value })} required />
+            <input
+              id="installment-description"
+              type="text"
+              placeholder="e.g. Laptop, smartphone, furniture"
+              value={purchaseForm.description}
+              onChange={(event) =>
+                setPurchaseForm({ ...purchaseForm, description: event.target.value })
+              }
+              required
+            />
           </div>
           <div className="income-field">
             <label htmlFor="installment-total">Total purchase amount (R$)</label>
-            <input id="installment-total" type="number" min="0.01" step="0.01" placeholder="0.00" value={purchaseForm.totalAmount} onChange={(event) => setPurchaseForm({ ...purchaseForm, totalAmount: event.target.value })} required />
+            <input
+              id="installment-total"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={purchaseForm.totalAmount}
+              onChange={(event) =>
+                setPurchaseForm({ ...purchaseForm, totalAmount: event.target.value })
+              }
+              required
+            />
           </div>
           <div className="income-field">
             <label htmlFor="installment-count">Number of installments</label>
-            <select id="installment-count" value={purchaseForm.installmentsCount} onChange={(event) => setPurchaseForm({ ...purchaseForm, installmentsCount: event.target.value })}>
-              {Array.from({ length: 47 }, (_, index) => index + 2).map((count) => <option key={count} value={count}>{count} installments</option>)}
+            <select
+              id="installment-count"
+              value={purchaseForm.installmentsCount}
+              onChange={(event) =>
+                setPurchaseForm({ ...purchaseForm, installmentsCount: event.target.value })
+              }
+            >
+              {Array.from({ length: 47 }, (_, index) => index + 2).map((count) => (
+                <option key={count} value={count}>
+                  {count} installments
+                </option>
+              ))}
             </select>
           </div>
           <div className="income-field">
             <label htmlFor="installment-first-date">First payment date</label>
-            <input id="installment-first-date" type="date" value={purchaseForm.firstPaymentDate} onChange={(event) => setPurchaseForm({ ...purchaseForm, firstPaymentDate: event.target.value })} required />
+            <input
+              id="installment-first-date"
+              type="date"
+              value={purchaseForm.firstPaymentDate}
+              onChange={(event) =>
+                setPurchaseForm({ ...purchaseForm, firstPaymentDate: event.target.value })
+              }
+              required
+            />
           </div>
           <div className="income-field">
             <label htmlFor="installment-method">Payment method</label>
-            <select id="installment-method" value={purchaseForm.paymentMethod} onChange={(event) => setPurchaseForm({ ...purchaseForm, paymentMethod: event.target.value })} required>
-              <option value="Credit card">Credit card</option><option value="Store financing">Store financing</option><option value="Other">Other</option>
+            <select
+              id="installment-method"
+              value={purchaseForm.paymentMethod}
+              onChange={(event) =>
+                setPurchaseForm({ ...purchaseForm, paymentMethod: event.target.value })
+              }
+              required
+            >
+              <option value="Credit card">Credit card</option>
+              <option value="Store financing">Store financing</option>
+              <option value="Other">Other</option>
             </select>
           </div>
           {purchaseForm.totalAmount && Number(purchaseForm.totalAmount) > 0 && (
             <div className="installment-calculation">
               <span>Estimated installment amount</span>
-              <strong>{formatCurrency(Math.round(Number(purchaseForm.totalAmount) * 100 / Number(purchaseForm.installmentsCount)) / 100)}</strong>
-              <small>{purchaseForm.installmentsCount} payments · Total {formatCurrency(purchaseForm.totalAmount)}</small>
+              <strong>
+                {formatCurrency(
+                  Math.round(
+                    (Number(purchaseForm.totalAmount) * 100) /
+                      Number(purchaseForm.installmentsCount)
+                  ) / 100
+                )}
+              </strong>
+              <small>
+                {purchaseForm.installmentsCount} payments · Total{" "}
+                {formatCurrency(purchaseForm.totalAmount)}
+              </small>
             </div>
           )}
           <div className="income-form-actions expense-form-actions">
-            {editingPurchaseId && <button type="button" className="cancel-expense-button" onClick={resetForm}>Cancel</button>}
-            <button type="submit" className="add-installment-button">{editingPurchaseId ? "Save Changes" : "+ Add Purchase"}</button>
+            {editingPurchaseId && (
+              <button type="button" className="cancel-expense-button" onClick={resetForm}>
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="add-installment-button">
+              {editingPurchaseId ? "Save Changes" : "+ Add Purchase"}
+            </button>
           </div>
         </form>
       </article>
 
       <article className="dashboard-panel income-records-panel">
         <div className="income-panel-heading">
-          <div><h3>Scheduled Installments</h3><p>Review upcoming payments and mark installments as paid.</p></div>
+          <div>
+            <h3>Scheduled Installments</h3>
+            <p>Review upcoming payments and mark installments as paid.</p>
+          </div>
           <Icon type="calendar" />
         </div>
         {allInstallments.length ? (
           <div className="installment-schedule-list">
             {allInstallments.map((item) => {
-              const status = item.paid ? "Paid" : item.date < today ? "Overdue" : item.date === today ? "Due today" : "Upcoming";
+              const status = item.paid
+                ? "Paid"
+                : item.date < today
+                ? "Overdue"
+                : item.date === today
+                ? "Due today"
+                : "Upcoming";
               return (
-                <div className={`installment-schedule-item ${item.paid ? "is-paid" : ""}`} key={`${item.purchaseId}-${item.number}`}>
-                  <div className="installment-record-icon"><Icon type="installments" /></div>
+                <div
+                  className={`installment-schedule-item ${item.paid ? "is-paid" : ""}`}
+                  key={`${item.purchaseId}-${item.number}`}
+                >
+                  <div className="installment-record-icon">
+                    <Icon type="installments" />
+                  </div>
                   <div className="income-record-info">
                     <strong>{item.description}</strong>
-                    <span>Installment {item.number} of {item.installmentsCount} · {item.paymentMethod} · {new Date(`${item.date}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+                    <span>
+                      Installment {item.number} of {item.installmentsCount} ·{" "}
+                      {item.paymentMethod} ·{" "}
+                      {new Date(`${item.date}T12:00:00`).toLocaleDateString("pt-BR")}
+                    </span>
                   </div>
                   <div className="installment-record-details">
                     <strong>{formatCurrency(item.amount)}</strong>
-                    <span className={`installment-status ${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>
+                    <span
+                      className={`installment-status ${status
+                        .toLowerCase()
+                        .replaceAll(" ", "-")}`}
+                    >
+                      {status}
+                    </span>
                   </div>
-                  <button type="button" className="installment-paid-button" onClick={() => toggleInstallmentPaid(item.purchaseId, item.number)}>{item.paid ? "Undo" : "Mark paid"}</button>
+                  <button
+                    type="button"
+                    className="installment-paid-button"
+                    onClick={() => toggleInstallmentPaid(item.purchaseId, item.number)}
+                  >
+                    {item.paid ? "Undo" : "Mark paid"}
+                  </button>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="income-empty-state"><Icon type="installments" /><h4>No installment purchases yet</h4><p>Your registered purchases and scheduled payments will appear here.</p></div>
+          <div className="income-empty-state">
+            <Icon type="installments" />
+            <h4>No installment purchases yet</h4>
+            <p>Your registered purchases and scheduled payments will appear here.</p>
+          </div>
         )}
       </article>
 
       {purchases.length > 0 && (
         <article className="dashboard-panel income-records-panel">
-          <div className="income-panel-heading"><div><h3>Your Purchases</h3><p>Edit or remove a purchase and its payment schedule.</p></div><Icon type="receipt" /></div>
+          <div className="income-panel-heading">
+            <div>
+              <h3>Your Purchases</h3>
+              <p>Edit or remove a purchase and its payment schedule.</p>
+            </div>
+            <Icon type="receipt" />
+          </div>
           <div className="installment-purchase-list">
             {purchases.map((purchase) => {
               const schedule = buildInstallments(purchase);
               const paidCount = schedule.filter((item) => item.paid).length;
-              return <div className="installment-purchase-item" key={purchase.id}>
-                <div className="income-record-info"><strong>{purchase.description}</strong><span>{purchase.paymentMethod} · {purchase.installmentsCount} installments · {paidCount} paid</span></div>
-                <strong className="installment-purchase-total">{formatCurrency(purchase.totalAmount)}</strong>
-                <div className="expense-record-actions"><button type="button" onClick={() => handleEditPurchase(purchase)}>Edit</button><button type="button" onClick={() => handleDeletePurchase(purchase.id)}>Delete</button></div>
-              </div>;
+              return (
+                <div className="installment-purchase-item" key={purchase.id}>
+                  <div className="income-record-info">
+                    <strong>{purchase.description}</strong>
+                    <span>
+                      {purchase.paymentMethod} · {purchase.installmentsCount} installments ·{" "}
+                      {paidCount} paid
+                    </span>
+                  </div>
+                  <strong className="installment-purchase-total">
+                    {formatCurrency(purchase.totalAmount)}
+                  </strong>
+                  <div className="expense-record-actions">
+                    <button type="button" onClick={() => handleEditPurchase(purchase)}>
+                      Edit
+                    </button>
+                    <button type="button" onClick={() => handleDeletePurchase(purchase.id)}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
             })}
           </div>
         </article>
@@ -1303,9 +1378,8 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
   });
   const [paymentForm, setPaymentForm] = useState(createEmptyForm);
   const [editingPaymentId, setEditingPaymentId] = useState(null);
-  const sortedPayments = [...payments].sort((a, b) =>
-    a.date.localeCompare(b.date)
-  );
+  const sortedPayments = [...payments].sort((a, b) => a.date.localeCompare(b.date));
+
   function resetForm() {
     setPaymentForm(createEmptyForm());
     setEditingPaymentId(null);
@@ -1317,9 +1391,7 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
     if (editingPaymentId) {
       setPayments((previousPayments) =>
         previousPayments.map((payment) =>
-          payment.id === editingPaymentId
-            ? { ...payment, ...paymentForm }
-            : payment
+          payment.id === editingPaymentId ? { ...payment, ...paymentForm } : payment
         )
       );
     } else {
@@ -1344,7 +1416,9 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
   }
 
   function handleDeletePayment(paymentId) {
-    if (!window.confirm("Delete this scheduled payment? This action cannot be undone.")) {
+    if (
+      !window.confirm("Delete this scheduled payment? This action cannot be undone.")
+    ) {
       return;
     }
 
@@ -1381,10 +1455,7 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
           <span className="payment-plus">{editingPaymentId ? "✎" : "+"}</span>
         </div>
 
-        <form
-          className="income-form"
-          onSubmit={handleSavePayment}
-        >
+        <form className="income-form" onSubmit={handleSavePayment}>
           <div className="income-field">
             <label htmlFor="scheduled-payment-description">Description</label>
             <input
@@ -1483,8 +1554,8 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
                 payment.date < today
                   ? "Overdue"
                   : payment.date === today
-                    ? "Due today"
-                    : "Upcoming";
+                  ? "Due today"
+                  : "Upcoming";
 
               return (
                 <div className="payment-record" key={payment.id}>
@@ -1495,13 +1566,15 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
                     <strong>{payment.description}</strong>
                     <span>
                       {payment.paymentMethod} ·{" "}
-                      {new Date(`${payment.date}T12:00:00`).toLocaleDateString(
-                        "pt-BR"
-                      )}
+                      {new Date(`${payment.date}T12:00:00`).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
                   <div className="payment-record-status">
-                    <span className={`payment-status ${status.toLowerCase().replace(" ", "-")}`}>
+                    <span
+                      className={`payment-status ${status
+                        .toLowerCase()
+                        .replace(" ", "-")}`}
+                    >
                       {status}
                     </span>
                     <strong className="payment-record-amount">
@@ -1569,9 +1642,7 @@ function ExpenseManagement({ expenses, setExpenses }) {
     if (editingExpenseId) {
       setExpenses((previousExpenses) =>
         previousExpenses.map((expense) =>
-          expense.id === editingExpenseId
-            ? { ...expense, ...expenseForm }
-            : expense
+          expense.id === editingExpenseId ? { ...expense, ...expenseForm } : expense
         )
       );
     } else {
@@ -1828,8 +1899,9 @@ function ExpenseManagement({ expenses, setExpenses }) {
   );
 }
 
-
 function App() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const features = [
     {
       icon: "wallet",
@@ -1850,8 +1922,7 @@ function App() {
     {
       icon: "chart",
       title: "Budget monitoring",
-      description:
-        "Know how much you have spent and how much remains.",
+      description: "Know how much you have spent and how much remains.",
     },
     {
       icon: "dashboard",
@@ -1861,8 +1932,7 @@ function App() {
     {
       icon: "future",
       title: "Future planning",
-      description:
-        "Prepare for upcoming payments and recurring expenses.",
+      description: "Prepare for upcoming payments and recurring expenses.",
     },
   ];
 
@@ -1873,22 +1943,57 @@ function App() {
 
   return (
     <>
-      {/* HEADER */}
-      <header className="site-header">
-        <a className="brand" href="#home">
-          Fin<span>Track</span>
-        </a>
+      {/* HOME PAGE NAVIGATION */}
+      <header className={`site-header ${mobileMenuOpen ? "menu-open" : ""}`}>
+        <div className="site-header-inner">
+          <button
+            className="mobile-nav-toggle"
+            type="button"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="primary-navigation"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            <Icon type={mobileMenuOpen ? "close" : "menu"} />
+          </button>
 
-        <nav className="main-nav">
-          <a href="#problem">Problem</a>
-          <a href="#solution">Solution</a>
-          <a href="#how-it-works">How It Works</a>
-          <a href="#features">Features</a>
-        </nav>
+          <a className="brand" href="#home" aria-label="FinTrack home">
+            <span className="brand-mark">
+              <Icon type="wallet" />
+            </span>
+            <span className="brand-word">
+              Fin<span>Track</span>
+            </span>
+          </a>
 
-        <a className="login-button" href="/dashboard">
-          <span>Login</span>
-        </a>
+          <nav
+            className={`main-nav ${mobileMenuOpen ? "is-open" : ""}`}
+            id="primary-navigation"
+            aria-label="Main navigation"
+          >
+            <a href="#problem" onClick={() => setMobileMenuOpen(false)}>
+              Why FinTrack
+            </a>
+            <a href="#solution" onClick={() => setMobileMenuOpen(false)}>
+              Our Solution
+            </a>
+            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>
+              How It Works
+            </a>
+            <a href="#features" onClick={() => setMobileMenuOpen(false)}>
+              Features
+            </a>
+          </nav>
+
+          <div className="header-actions">
+            <a className="login-button" href="/dashboard">
+              <span>Go to Dashboard</span>
+              <span className="nav-cta-arrow" aria-hidden="true">
+                →
+              </span>
+            </a>
+          </div>
+        </div>
       </header>
 
       <main>
@@ -1896,7 +2001,6 @@ function App() {
         <section className="hero gradient-section" id="home">
           <div className="hero-copy">
             <h1>Your money, your control.</h1>
-
             <p>
               Organize your finances, track your expenses, and plan your
               <br className="desktop-break" />
@@ -1909,48 +2013,32 @@ function App() {
         <section className="app-preview">
           <div className="image-placeholder">
             <span>APP Image</span>
-            <small>
-              Replace this placeholder with your app screenshot
-            </small>
+            <small>Replace this placeholder with your app screenshot</small>
           </div>
         </section>
 
         {/* PROBLEM */}
-        <section
-          className="content-section gradient-section"
-          id="problem"
-        >
+        <section className="content-section gradient-section" id="problem">
           <div className="section-inner">
             <SectionLabel>Problem</SectionLabel>
-
-            <h2>
-              Managing money shouldn't be complicated.
-            </h2>
-
+            <h2>Managing money shouldn't be complicated.</h2>
             <p className="section-description">
-              Keeping track of income, recurring expenses, and credit
-              card installments can be challenging. Without a clear
-              overview, it's easy to lose control of your monthly budget.
+              Keeping track of income, recurring expenses, and credit card
+              installments can be challenging. Without a clear overview, it's
+              easy to lose control of your monthly budget.
             </p>
           </div>
         </section>
 
         {/* SOLUTION */}
-        <section
-          className="content-section light-section"
-          id="solution"
-        >
+        <section className="content-section light-section" id="solution">
           <div className="section-inner">
             <SectionLabel>Solution</SectionLabel>
-
-            <h2>
-              A simpler way to manage your finances.
-            </h2>
-
+            <h2>A simpler way to manage your finances.</h2>
             <p className="section-description">
-              FinTrack brings your financial information together in
-              one place, helping you understand your spending,
-              organize payments, and make smarter financial decisions.
+              FinTrack brings your financial information together in one place,
+              helping you understand your spending, organize payments, and make
+              smarter financial decisions.
             </p>
           </div>
         </section>
@@ -1962,47 +2050,38 @@ function App() {
         >
           <div className="section-inner">
             <SectionLabel>How it works</SectionLabel>
-
-            <h2>
-              Take control in three simple steps.
-            </h2>
+            <h2>Take control in three simple steps.</h2>
 
             <div className="steps-grid">
               <article className="step">
                 <span className="step-number">01</span>
-
                 <div>
                   <h3>Add your transactions</h3>
-
                   <p>
-                    Record your income and expenses, including
-                    recurring payments and installments.
+                    Record your income and expenses, including recurring
+                    payments and installments.
                   </p>
                 </div>
               </article>
 
               <article className="step">
                 <span className="step-number">02</span>
-
                 <div>
                   <h3>Set your monthly budget</h3>
-
                   <p>
-                    Define your spending limit and monitor how
-                    much of your budget you've used.
+                    Define your spending limit and monitor how much of your
+                    budget you've used.
                   </p>
                 </div>
               </article>
 
               <article className="step">
                 <span className="step-number">03</span>
-
                 <div>
                   <h3>Track your financial future</h3>
-
                   <p>
-                    View scheduled installments and recurring
-                    expenses to prepare for the months ahead.
+                    View scheduled installments and recurring expenses to
+                    prepare for the months ahead.
                   </p>
                 </div>
               </article>
@@ -2011,29 +2090,18 @@ function App() {
         </section>
 
         {/* FEATURES */}
-        <section
-          className="features-section light-section"
-          id="features"
-        >
+        <section className="features-section light-section" id="features">
           <div className="section-inner">
             <SectionLabel>Features</SectionLabel>
-
-            <h2>
-              Everything you need in one place.
-            </h2>
+            <h2>Everything you need in one place.</h2>
 
             <div className="features-grid">
               {features.map((feature) => (
-                <article
-                  className="feature"
-                  key={feature.title}
-                >
+                <article className="feature" key={feature.title}>
                   <div className="feature-heading">
                     <Icon type={feature.icon} />
-
                     <h3>{feature.title}</h3>
                   </div>
-
                   <p>{feature.description}</p>
                 </article>
               ))}
@@ -2041,15 +2109,10 @@ function App() {
 
             {/* CALL TO ACTION */}
             <div className="cta-card" id="login">
-              <h2>
-                Start taking control of your finances today.
-              </h2>
-
+              <h2>Start taking control of your finances today.</h2>
               <p>
-                Build better financial habits with a clearer
-                view of your money.
+                Build better financial habits with a clearer view of your money.
               </p>
-
               <a className="cta-button" href="/dashboard">
                 Create your account
               </a>
@@ -2060,17 +2123,43 @@ function App() {
 
       {/* FOOTER */}
       <footer className="site-footer">
-        <a className="footer-brand" href="#home">
-          FinTrack
-        </a>
+        <div className="footer-main">
+          <div className="footer-brand-block">
+            <a className="footer-brand" href="#home" aria-label="FinTrack home">
+              Fin<span>Track</span>
+            </a>
+            <p className="footer-description">
+              A clearer view of your money. Organize your finances, build better
+              habits, and plan your next move with confidence.
+            </p>
+          </div>
 
-        <p>
-          © {new Date().getFullYear()} FinTrack. All rights reserved.
-        </p>
+          <div className="footer-links-group">
+            <h3>Explore</h3>
+            <a href="#problem">The challenge</a>
+            <a href="#solution">Our solution</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#features">Features</a>
+          </div>
+
+          <div className="footer-links-group">
+            <h3>Your finances</h3>
+            <a href="/dashboard">Open dashboard</a>
+            <a href="/dashboard">Track income</a>
+            <a href="/dashboard">Manage expenses</a>
+            <a href="/dashboard">Plan a budget</a>
+          </div>
+        </div>
+
+        <div className="footer-bottom">
+          <p>© {new Date().getFullYear()} FinTrack. All rights reserved.</p>
+          <a href="#home" className="back-to-top">
+            Back to top ↑
+          </a>
+        </div>
       </footer>
     </>
   );
 }
-
 
 export default App;
