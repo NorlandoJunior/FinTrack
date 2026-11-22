@@ -1946,15 +1946,16 @@ function App() {
       {/* HOME PAGE NAVIGATION */}
       <header className={`site-header ${mobileMenuOpen ? "menu-open" : ""}`}>
         <div className="site-header-inner">
+          {/* Hamburger: always shows ☰, always opens the drawer */}
           <button
             className="mobile-nav-toggle"
             type="button"
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-label="Open navigation"
             aria-expanded={mobileMenuOpen}
             aria-controls="primary-navigation"
-            onClick={() => setMobileMenuOpen((open) => !open)}
+            onClick={() => setMobileMenuOpen(true)}
           >
-            <Icon type={mobileMenuOpen ? "close" : "menu"} />
+            <Icon type="menu" />
           </button>
 
           <a className="brand" href="#home" aria-label="FinTrack home">
@@ -1971,6 +1972,16 @@ function App() {
             id="primary-navigation"
             aria-label="Main navigation"
           >
+            {/* Close (X) button lives INSIDE the drawer, top-right */}
+            <button
+              className="mobile-nav-close"
+              type="button"
+              aria-label="Close navigation"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Icon type="close" />
+            </button>
+
             <a href="#problem" onClick={() => setMobileMenuOpen(false)}>
               Why FinTrack
             </a>
@@ -1994,6 +2005,16 @@ function App() {
             </a>
           </div>
         </div>
+
+        {/* Backdrop: clicking the body/page closes the drawer */}
+        {mobileMenuOpen && (
+          <button
+            className="mobile-nav-backdrop"
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
       </header>
 
       <main>

@@ -64,7 +64,7 @@ textarea:focus-visible {
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200;
   width: 100%;
   padding: 0;
   background: rgba(255, 255, 255, 0.97);
@@ -72,6 +72,11 @@ textarea:focus-visible {
   box-shadow: 0 5px 22px rgba(33, 52, 72, 0.045);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  transition: box-shadow 0.28s ease, background-color 0.28s ease;
+}
+
+.site-header.menu-open {
+  box-shadow: 0 12px 30px rgba(33, 52, 72, 0.10);
 }
 
 .site-header-inner {
@@ -219,6 +224,16 @@ textarea:focus-visible {
 }
 
 .mobile-nav-toggle {
+  display: none;
+}
+
+/* Backdrop base — hidden on desktop, shown on mobile when drawer is open */
+.mobile-nav-backdrop {
+  display: none;
+}
+
+/* Drawer close (X) — only rendered inside the drawer on mobile */
+.mobile-nav-close {
   display: none;
 }
 
@@ -1986,34 +2001,27 @@ textarea:focus-visible {
    ========================= */
 
 @media (max-width: 760px) {
-  /* --- Landing header: mobile drawer --- */
+  /* --- Landing header: off-canvas drawer with slide transition --- */
   .site-header {
     position: sticky;
     top: 0;
+    z-index: 200;
   }
+
   .site-header-inner {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
     min-height: 68px;
-    padding: 0 18px;
-    gap: 12px;
+    padding: 0 16px;
+    gap: 10px;
   }
-  .brand {
-    gap: 7px;
-  }
-  .brand-mark {
-    width: 37px;
-    height: 37px;
-    border-radius: 11px;
-  }
-  .brand-word {
-    font-size: 22px;
-  }
-  .header-actions {
-    gap: 9px;
-  }
+
+  /* Toggle: left column — icon never swaps, always shows hamburger */
   .mobile-nav-toggle {
     display: inline-grid;
+    grid-column: 1;
+    grid-row: 1;
     place-items: center;
     width: 42px;
     height: 42px;
@@ -2022,55 +2030,163 @@ textarea:focus-visible {
     color: var(--navy);
     background: #fff;
     cursor: pointer;
-    transition: background 0.18s ease, border-color 0.18s ease;
+    transition: background 0.18s ease, border-color 0.18s ease,
+      color 0.18s ease;
   }
-  .mobile-nav-toggle:hover {
-    background: #f2f6f8;
-    border-color: var(--blue-light);
+
+  .mobile-nav-toggle:hover,
+  .mobile-nav-toggle:focus-visible {
+    color: #fff;
+    background: var(--navy);
+    border-color: var(--navy);
   }
+
   .mobile-nav-toggle svg {
     width: 21px;
     height: 21px;
   }
 
-  /* The mobile drawer is scoped to .site-header so it can NEVER
-     leak onto the dashboard where .main-nav does not exist. */
-  .site-header .main-nav {
-    display: none;
-    grid-column: 1 / -1;
-    grid-row: 2;
-    align-items: stretch;
-    gap: 4px;
-    width: 100%;
+  /* Brand: middle column */
+  .brand {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+    gap: 8px;
     margin: 0;
-    padding: 10px 0 16px;
-    border-top: 1px solid #edf0f3;
   }
-  .site-header .main-nav.is-open {
-    display: flex;
-    flex-direction: column;
+
+  .brand-mark {
+    width: 37px;
+    height: 37px;
+    border-radius: 11px;
   }
-  .site-header .main-nav a {
-    padding: 12px 13px;
-    border-radius: 8px;
-    font-size: 14px;
+
+  .brand-word {
+    font-size: 22px;
   }
-  .site-header .main-nav a:hover,
-  .site-header .main-nav a:focus-visible {
-    color: var(--navy);
-    background: #f1f5f7;
+
+  /* Actions (login): right column */
+  .header-actions {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    gap: 9px;
   }
-  .site-header .main-nav a::after {
-    display: none;
-  }
+
   .login-button {
     min-height: 40px;
     padding: 0 13px;
     border-radius: 9px;
     font-size: 11px;
   }
+
   .nav-cta-arrow {
     display: none;
+  }
+
+  /* Off-canvas drawer — slides in from right with smooth transition */
+  .site-header .main-nav {
+    position: fixed;
+    z-index: 220;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
+    width: min(320px, 84vw);
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    padding: 80px 22px 28px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 0;
+    border-radius: 0;
+    box-shadow: -18px 0 45px rgba(12, 26, 40, 0.18);
+    transform: translateX(100%);
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+
+  .site-header .main-nav.is-open {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  /* Close (X) button on the drawer itself */
+  .mobile-nav-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid #e3e9ee;
+    border-radius: 10px;
+    color: var(--navy);
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  .mobile-nav-close:hover,
+  .mobile-nav-close:focus-visible {
+    color: #fff;
+    background: var(--navy);
+    border-color: var(--navy);
+  }
+
+  .mobile-nav-close svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .site-header .main-nav a {
+    display: block;
+    padding: 14px 14px;
+    border-radius: 10px;
+    color: #526274;
+    font-size: 15px;
+    font-weight: 650;
+    text-decoration: none;
+    transition: color 0.18s ease, background 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .site-header .main-nav a:hover,
+  .site-header .main-nav a:focus-visible {
+    color: var(--navy);
+    background: #f1f5f7;
+    transform: translateX(2px);
+  }
+
+  .site-header .main-nav a::after {
+    display: none;
+  }
+
+  /* Backdrop — appears behind the drawer with fade-in */
+  .mobile-nav-backdrop {
+    position: fixed;
+    z-index: 210;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(15, 28, 42, 0.48);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    cursor: pointer;
+    opacity: 0;
+    animation: fintrack-backdrop-in 0.24s ease forwards;
   }
 
   /* --- Landing page --- */
@@ -2124,7 +2240,7 @@ textarea:focus-visible {
     max-width: 520px;
   }
 
-  /* --- Dashboard: off-canvas sidebar --- */
+  /* --- Dashboard: off-canvas sidebar (untouched) --- */
   .dashboard-layout,
   .dashboard-layout.sidebar-collapsed {
     --sidebar-width: 0px;
@@ -2359,16 +2475,26 @@ textarea:focus-visible {
   }
 }
 
+@keyframes fintrack-backdrop-in {
+  to {
+    opacity: 1;
+  }
+}
+
 /* =========================
    13. SMALL MOBILE (≤480px)
    ========================= */
 
 @media (max-width: 480px) {
   .site-header-inner {
-    grid-template-columns: minmax(0, 1fr) 38px auto;
+    grid-template-columns: auto 1fr auto;
     min-height: 59px;
-    padding: 7px 8px 7px 11px;
+    padding: 7px 11px;
     gap: 7px;
+  }
+  .mobile-nav-toggle {
+    width: 36px;
+    height: 36px;
   }
   .brand-mark {
     width: 32px;
@@ -2376,10 +2502,6 @@ textarea:focus-visible {
   }
   .brand-word {
     font-size: 19px;
-  }
-  .mobile-nav-toggle {
-    width: 36px;
-    height: 36px;
   }
   .login-button {
     min-height: 36px;
@@ -2389,6 +2511,17 @@ textarea:focus-visible {
   .nav-cta-arrow {
     display: none;
   }
+  .site-header .main-nav {
+    width: min(300px, 86vw);
+    padding: 76px 18px 24px;
+  }
+  .mobile-nav-close {
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+  }
+
   .hero {
     min-height: 310px;
     padding: 60px 20px 58px;
