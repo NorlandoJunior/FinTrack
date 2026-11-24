@@ -98,6 +98,31 @@ function SectionLabel({ children }) {
   return <div className="section-label">{children}</div>;
 }
 
+function getNextMonthlyDueDate(date, dayOfMonth) {
+  const [year, month] = date.split("-").map(Number);
+  const nextMonth = new Date(Date.UTC(year, month, 1));
+  const nextYear = nextMonth.getUTCFullYear();
+  const nextMonthIndex = nextMonth.getUTCMonth();
+  const lastDayOfMonth = new Date(
+    Date.UTC(nextYear, nextMonthIndex + 1, 0)
+  ).getUTCDate();
+  const nextDay = Math.min(dayOfMonth, lastDayOfMonth);
+
+  return `${nextYear}-${String(nextMonthIndex + 1).padStart(2, "0")}-${String(
+    nextDay
+  ).padStart(2, "0")}`;
+}
+
+function isRecurringExpenseComplete(expense) {
+  const totalOccurrences = Number(expense.totalOccurrences);
+  return (
+    Number.isInteger(totalOccurrences) &&
+    totalOccurrences > 0 &&
+    Number(expense.occurrencesCreated || 0) >= totalOccurrences
+  );
+}
+
+
 function Dashboard() {
   const [expanded, setExpanded] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -149,6 +174,19 @@ function Dashboard() {
       return [];
     }
   });
+  const [recurringExpenses, setRecurringExpenses] = useState(() => {
+    try {
+      const savedRecurringExpenses = JSON.parse(
+        localStorage.getItem("fintrack-recurring-expenses")
+      );
+      return Array.isArray(savedRecurringExpenses)
+        ? savedRecurringExpenses
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const recurringDataRef = React.useRef({ expenses, recurringExpenses });
 
   const [installmentPurchases, setInstallmentPurchases] = useState(() => {
     try {
@@ -177,6 +215,13 @@ function Dashboard() {
       JSON.stringify(scheduledPayments)
     );
   }, [scheduledPayments]);
+
+  React.useEffect(() => {
+    localStorage.setItem(
+      "fintrack-recurring-expenses",
+      JSON.stringify(recurringExpenses)
+    );
+  }, [recurringExpenses]);
 
   React.useEffect(() => {
     localStorage.setItem(
@@ -212,8 +257,19 @@ function Dashboard() {
   const budgetProgress = monthlyBudget
     ? Math.min((monthlyExpenseTotal / monthlyBudget) * 100, 100)
     : 0;
-  const upcomingPayments = scheduledPayments
-    .filter((payment) => payment.date >= today)
+  const upcomingPayments = [
+    ...scheduledPayments.filter((payment) => payment.date >= today),
+    ...recurringExpenses
+      .filter(
+        (expense) =>
+          expense.nextDueDate >= today && !isRecurringExpenseComplete(expense)
+      )
+      .map((expense) => ({
+        ...expense,
+        date: expense.nextDueDate,
+        isRecurring: true,
+      })),
+  ]
     .sort((a, b) => a.date.localeCompare(b.date));
   const recentTransactions = [
     ...incomes.map((income) => ({ ...income, type: "income" })),
@@ -221,6 +277,103 @@ function Dashboard() {
   ]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
+
+  React.useEffect(() => {
+    recurringDataRef.current = { expenses, recurringExpenses };
+
+    function processDueRecurringExpenses() {
+      const currentDate = new Date();
+      const processingMonth = `${currentDate.getFullYear()}-${String(
+        currentDate.getMonth() + 1
+      ).padStart(2, "0")}`;
+      const processingDate = `${processingMonth}-${String(
+        currentDate.getDate()
+      ).padStart(2, "0")}`;
+      const currentData = recurringDataRef.current;
+      const knownExpenseIds = new Set(
+        currentData.expenses.map((expense) => expense.id)
+      );
+      const generatedExpenses = [];
+      let recurringExpensesChanged = false;
+
+      const updatedRecurringExpenses = currentData.recurringExpenses.map(
+        (recurringExpense) => {
+          let nextDueDate = recurringExpense.nextDueDate;
+          let occurrencesCreated = Number(
+            recurringExpense.occurrencesCreated || 0
+          );
+          const totalOccurrences = Number(recurringExpense.totalOccurrences);
+
+          while (
+            nextDueDate <= processingDate &&
+            (!totalOccurrences || occurrencesCreated < totalOccurrences)
+          ) {
+            const expenseId = `recurring-${recurringExpense.id}-${nextDueDate}`;
+            const paymentNumber = occurrencesCreated + 1;
+            if (!knownExpenseIds.has(expenseId)) {
+              generatedExpenses.push({
+                id: expenseId,
+                amount: recurringExpense.amount,
+                description: recurringExpense.description,
+                category: recurringExpense.category,
+                date: nextDueDate,
+                paymentMethod: recurringExpense.paymentMethod,
+                paymentNumber,
+                paymentCount: totalOccurrences || null,
+              });
+              knownExpenseIds.add(expenseId);
+            }
+
+            occurrencesCreated = paymentNumber;
+            nextDueDate = getNextMonthlyDueDate(
+              nextDueDate,
+              recurringExpense.dayOfMonth
+            );
+          }
+
+          if (
+            nextDueDate !== recurringExpense.nextDueDate ||
+            occurrencesCreated !==
+              Number(recurringExpense.occurrencesCreated || 0)
+          ) {
+            recurringExpensesChanged = true;
+            return { ...recurringExpense, nextDueDate, occurrencesCreated };
+          }
+
+          return recurringExpense;
+        }
+      );
+
+      if (generatedExpenses.length > 0) {
+        setExpenses((previousExpenses) => {
+          const existingIds = new Set(
+            previousExpenses.map((expense) => expense.id)
+          );
+          return [
+            ...previousExpenses,
+            ...generatedExpenses.filter(
+              (expense) => !existingIds.has(expense.id)
+            ),
+          ];
+        });
+      }
+
+      if (recurringExpensesChanged) {
+        setRecurringExpenses(updatedRecurringExpenses);
+      }
+    }
+
+    const initialTimer = window.setTimeout(processDueRecurringExpenses, 0);
+    const intervalTimer = window.setInterval(
+      processDueRecurringExpenses,
+      60_000
+    );
+
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(intervalTimer);
+    };
+  }, [expenses, recurringExpenses]);
 
   function handleSaveBudget(event) {
     event.preventDefault();
@@ -548,6 +701,14 @@ function Dashboard() {
                           {new Date(
                             `${payment.date}T12:00:00`
                           ).toLocaleDateString("pt-BR")}
+                          {payment.isRecurring &&
+                            ` · Monthly${
+                              payment.totalOccurrences
+                                ? ` · Payment ${
+                                    Number(payment.occurrencesCreated || 0) + 1
+                                  } of ${payment.totalOccurrences}`
+                                : ""
+                            }`}
                         </span>
                       </div>
                       <strong>
@@ -832,6 +993,13 @@ function Dashboard() {
           <UpcomingPaymentsManagement
             payments={scheduledPayments}
             setPayments={setScheduledPayments}
+            recurringExpenses={recurringExpenses}
+            today={today}
+          />
+        ) : activeTab === "recurring" ? (
+          <RecurringExpensesManagement
+            recurringExpenses={recurringExpenses}
+            setRecurringExpenses={setRecurringExpenses}
             today={today}
           />
         ) : (
@@ -1369,7 +1537,12 @@ function InstallmentManagement({ purchases, setPurchases, today }) {
   );
 }
 
-function UpcomingPaymentsManagement({ payments, setPayments, today }) {
+function UpcomingPaymentsManagement({
+  payments,
+  setPayments,
+  recurringExpenses,
+  today,
+}) {
   const createEmptyForm = () => ({
     description: "",
     amount: "",
@@ -1378,7 +1551,14 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
   });
   const [paymentForm, setPaymentForm] = useState(createEmptyForm);
   const [editingPaymentId, setEditingPaymentId] = useState(null);
-  const sortedPayments = [...payments].sort((a, b) => a.date.localeCompare(b.date));
+  const sortedPayments = [
+    ...payments,
+    ...recurringExpenses.map((expense) => ({
+      ...expense,
+      date: expense.nextDueDate,
+      isRecurring: true,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
 
   function resetForm() {
     setPaymentForm(createEmptyForm());
@@ -1584,22 +1764,26 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
                       })}
                     </strong>
                   </div>
-                  <div className="expense-record-actions">
-                    <button
-                      type="button"
-                      onClick={() => handleEditPayment(payment)}
-                      aria-label={`Edit ${payment.description}`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePayment(payment.id)}
-                      aria-label={`Delete ${payment.description}`}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {payment.isRecurring ? (
+                    <span className="recurring-payment-label">Monthly</span>
+                  ) : (
+                    <div className="expense-record-actions">
+                      <button
+                        type="button"
+                        onClick={() => handleEditPayment(payment)}
+                        aria-label={`Edit ${payment.description}`}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePayment(payment.id)}
+                        aria-label={`Delete ${payment.description}`}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1609,6 +1793,379 @@ function UpcomingPaymentsManagement({ payments, setPayments, today }) {
             <Icon type="calendar" />
             <h4>No payments scheduled yet</h4>
             <p>Scheduled payments will appear here.</p>
+          </div>
+        )}
+      </article>
+    </section>
+  );
+}
+
+function RecurringExpensesManagement({
+  recurringExpenses,
+  setRecurringExpenses,
+  today,
+}) {
+  const createEmptyForm = () => ({
+    description: "",
+    amount: "",
+    category: "",
+    nextDueDate: today,
+    totalOccurrences: "",
+    dayOfMonth: Number(today.slice(-2)),
+    paymentMethod: "",
+  });
+  const [recurringForm, setRecurringForm] = useState(createEmptyForm);
+  const [editingRecurringId, setEditingRecurringId] = useState(null);
+  const activeRecurringExpenses = recurringExpenses.filter(
+    (expense) => !isRecurringExpenseComplete(expense)
+  );
+  const monthlyTotal = activeRecurringExpenses.reduce(
+    (total, expense) => total + Number(expense.amount),
+    0
+  );
+  const sortedRecurringExpenses = [...recurringExpenses].sort((a, b) =>
+    a.nextDueDate.localeCompare(b.nextDueDate)
+  );
+
+  function resetForm() {
+    setRecurringForm(createEmptyForm());
+    setEditingRecurringId(null);
+  }
+
+  function handleSaveRecurringExpense(event) {
+    event.preventDefault();
+    const totalOccurrences = recurringForm.totalOccurrences
+      ? Number(recurringForm.totalOccurrences)
+      : null;
+
+    if (editingRecurringId) {
+      setRecurringExpenses((previousExpenses) =>
+        previousExpenses.map((expense) =>
+          expense.id === editingRecurringId
+            ? { ...expense, ...recurringForm, totalOccurrences }
+            : expense
+        )
+      );
+    } else {
+      setRecurringExpenses((previousExpenses) => [
+        ...previousExpenses,
+        {
+          id: crypto.randomUUID(),
+          ...recurringForm,
+          totalOccurrences,
+          occurrencesCreated: 0,
+        },
+      ]);
+    }
+
+    resetForm();
+  }
+
+  function handleEditRecurringExpense(expense) {
+    setRecurringForm({
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      nextDueDate: expense.nextDueDate,
+      totalOccurrences: expense.totalOccurrences
+        ? String(expense.totalOccurrences)
+        : "",
+      dayOfMonth: expense.dayOfMonth || Number(expense.nextDueDate.slice(-2)),
+      paymentMethod: expense.paymentMethod,
+    });
+    setEditingRecurringId(expense.id);
+    document.getElementById("recurring-expense-description")?.focus();
+  }
+
+  function handleDeleteRecurringExpense(expenseId) {
+    if (
+      !window.confirm(
+        "Stop this recurring expense? Expenses already generated will remain in your records."
+      )
+    ) {
+      return;
+    }
+
+    setRecurringExpenses((previousExpenses) =>
+      previousExpenses.filter((expense) => expense.id !== expenseId)
+    );
+
+    if (editingRecurringId === expenseId) {
+      resetForm();
+    }
+  }
+
+  return (
+    <section className="dashboard-content income-content recurring-content">
+      <div className="income-welcome">
+        <div>
+          <span className="income-eyebrow">FINANCIAL PLANNING</span>
+          <h2>Recurring expenses</h2>
+          <p>
+            Organize repeated bills and let FinTrack record each monthly
+            expense for you.
+          </p>
+        </div>
+        <span className="demo-label">MONTHLY EXPENSES</span>
+      </div>
+
+      <div className="recurring-summary-grid">
+        <article className="income-summary-card recurring-summary-card">
+          <div className="income-summary-icon">
+            <Icon type="repeat" />
+          </div>
+          <div>
+            <span>Monthly commitments</span>
+            <strong>
+              {monthlyTotal.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })}
+            </strong>
+            <small>
+              {activeRecurringExpenses.length} active recurring{" "}
+              {activeRecurringExpenses.length === 1 ? "expense" : "expenses"}
+            </small>
+          </div>
+        </article>
+        <article className="dashboard-panel recurring-info-card">
+          <Icon type="calendar" />
+          <div>
+            <strong>Automatic monthly tracking</strong>
+            <p>
+              On each due date, an expense is added to your records and budget
+              totals automatically.
+            </p>
+          </div>
+        </article>
+      </div>
+
+      <article className="dashboard-panel income-form-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>
+              {editingRecurringId ? "Edit Recurring Expense" : "Add Recurring Expense"}
+            </h3>
+            <p>
+              {editingRecurringId
+                ? "Update the amount, duration, or next due date."
+                : "Register a bill that repeats each month."}
+            </p>
+          </div>
+          <span className="recurring-plus">{editingRecurringId ? "✎" : "+"}</span>
+        </div>
+
+        <form className="income-form" onSubmit={handleSaveRecurringExpense}>
+          <div className="income-field">
+            <label htmlFor="recurring-expense-description">Description</label>
+            <input
+              id="recurring-expense-description"
+              type="text"
+              placeholder="e.g. Rent or streaming subscription"
+              value={recurringForm.description}
+              onChange={(event) =>
+                setRecurringForm({
+                  ...recurringForm,
+                  description: event.target.value,
+                })
+              }
+              required
+            />
+          </div>
+          <div className="income-field">
+            <label htmlFor="recurring-expense-amount">Amount (R$)</label>
+            <input
+              id="recurring-expense-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={recurringForm.amount}
+              onChange={(event) =>
+                setRecurringForm({
+                  ...recurringForm,
+                  amount: event.target.value,
+                })
+              }
+              required
+            />
+          </div>
+          <div className="income-field">
+            <label htmlFor="recurring-expense-category">Category</label>
+            <select
+              id="recurring-expense-category"
+              value={recurringForm.category}
+              onChange={(event) =>
+                setRecurringForm({
+                  ...recurringForm,
+                  category: event.target.value,
+                })
+              }
+              required
+            >
+              <option value="">Select a category</option>
+              <option value="Housing">Housing</option>
+              <option value="Food">Food</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Health">Health</option>
+              <option value="Education">Education</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Bills">Bills</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div className="income-field">
+            <label htmlFor="recurring-expense-due-date">Next due date</label>
+            <input
+              id="recurring-expense-due-date"
+              type="date"
+              min={today}
+              value={recurringForm.nextDueDate}
+              onChange={(event) =>
+                setRecurringForm({
+                  ...recurringForm,
+                  nextDueDate: event.target.value,
+                  dayOfMonth: Number(event.target.value.slice(-2)),
+                })
+              }
+              required
+            />
+          </div>
+          <div className="income-field">
+            <label htmlFor="recurring-expense-occurrences">
+              Total monthly payments
+            </label>
+            <input
+              id="recurring-expense-occurrences"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Leave blank for ongoing"
+              value={recurringForm.totalOccurrences}
+              onChange={(event) =>
+                setRecurringForm({
+                  ...recurringForm,
+                  totalOccurrences: event.target.value,
+                })
+              }
+            />
+            <small className="recurring-field-hint">
+              Optional. Includes the first payment; leave blank for no end date.
+            </small>
+          </div>
+          <div className="income-field">
+            <label htmlFor="recurring-expense-payment-method">
+              Payment method
+            </label>
+            <select
+              id="recurring-expense-payment-method"
+              value={recurringForm.paymentMethod}
+              onChange={(event) =>
+                setRecurringForm({
+                  ...recurringForm,
+                  paymentMethod: event.target.value,
+                })
+              }
+              required
+            >
+              <option value="">Select a payment method</option>
+              <option value="Credit card">Credit card</option>
+              <option value="Debit card">Debit card</option>
+              <option value="Cash">Cash</option>
+              <option value="Pix">Pix</option>
+              <option value="Bank transfer">Bank transfer</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div className="income-form-actions expense-form-actions">
+            {editingRecurringId && (
+              <button
+                type="button"
+                className="cancel-expense-button"
+                onClick={resetForm}
+              >
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="add-recurring-button">
+              {editingRecurringId ? "Save Changes" : "+ Add Recurring Expense"}
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article className="dashboard-panel income-records-panel">
+        <div className="income-panel-heading">
+          <div>
+            <h3>Your Recurring Expenses</h3>
+            <p>Monthly obligations registered in FinTrack.</p>
+          </div>
+          <Icon type="repeat" />
+        </div>
+
+        {sortedRecurringExpenses.length > 0 ? (
+          <div className="income-record-list">
+            {sortedRecurringExpenses.map((expense) => {
+              const isComplete = isRecurringExpenseComplete(expense);
+              const totalOccurrences = Number(expense.totalOccurrences) || null;
+              const occurrencesCreated = Number(expense.occurrencesCreated || 0);
+
+              return (
+              <div className="recurring-record" key={expense.id}>
+                <div className="recurring-record-icon">
+                  <Icon type="repeat" />
+                </div>
+                <div className="income-record-info">
+                  <strong>{expense.description}</strong>
+                  <span>
+                    {expense.category} · {expense.paymentMethod} · Monthly
+                  </span>
+                  <span className="recurring-next-date">
+                    {isComplete
+                      ? `Completed · ${totalOccurrences} of ${totalOccurrences} payments`
+                      : `Next due ${new Date(
+                          `${expense.nextDueDate}T12:00:00`
+                        ).toLocaleDateString("pt-BR")}${
+                          totalOccurrences
+                            ? ` · ${occurrencesCreated} of ${totalOccurrences} payments made`
+                            : ""
+                        }`}
+                  </span>
+                </div>
+                <strong className="recurring-record-amount">
+                  {Number(expense.amount).toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </strong>
+                <div className="expense-record-actions">
+                  <button
+                    type="button"
+                    onClick={() => handleEditRecurringExpense(expense)}
+                    aria-label={`Edit ${expense.description}`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRecurringExpense(expense.id)}
+                    aria-label={`Delete ${expense.description} recurring expense`}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="income-empty-state">
+            <Icon type="repeat" />
+            <h4>No recurring expenses yet</h4>
+            <p>
+              Add rent, subscriptions, or bills to keep track of them here.
+            </p>
           </div>
         )}
       </article>
@@ -1859,6 +2416,9 @@ function ExpenseManagement({ expenses, setExpenses }) {
                       {new Date(`${expense.date}T12:00:00`).toLocaleDateString(
                         "pt-BR"
                       )}
+                      {expense.paymentNumber && expense.paymentCount
+                        ? ` · Payment ${expense.paymentNumber} of ${expense.paymentCount}`
+                        : ""}
                     </span>
                   </div>
                   <strong className="expense-record-amount">
