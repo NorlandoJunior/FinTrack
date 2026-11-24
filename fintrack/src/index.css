@@ -2628,3 +2628,157 @@ textarea:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* RECURRING EXPENSES */
+
+.recurring-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.recurring-summary-card,
+.recurring-info-card {
+  min-width: 0;
+  min-height: 112px;
+}
+
+.recurring-summary-card .income-summary-icon,
+.recurring-record-icon,
+.recurring-plus {
+  color: #547792;
+  background: #e6edf2;
+}
+
+.recurring-info-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.recurring-info-card > svg {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  color: #547792;
+}
+
+.recurring-info-card strong {
+  color: #213448;
+  font-size: 14px;
+}
+
+.recurring-info-card p {
+  margin: 7px 0 0;
+  color: #718096;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.recurring-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 23px;
+}
+
+.add-recurring-button {
+  min-height: 46px;
+  padding: 0 24px;
+  color: #fff;
+  background: #547792;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.add-recurring-button:hover,
+.add-recurring-button:focus-visible {
+  background: #213448;
+}
+
+.add-recurring-button:focus-visible {
+  outline: 3px solid #94b4c1;
+  outline-offset: 2px;
+}
+
+.recurring-record {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 0;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.recurring-record:last-child {
+  border-bottom: none;
+}
+
+.recurring-record-icon {
+  display: flex;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.income-record-info .recurring-next-date {
+  color: #547792;
+  font-weight: 600;
+}
+
+.recurring-field-hint {
+  color: #8493a1;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.recurring-record-amount {
+  color: #213448;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.recurring-payment-label {
+  padding: 5px 9px;
+  color: #45647d;
+  background: #e6edf2;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .recurring-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .recurring-record {
+    flex-wrap: wrap;
+  }
+
+  .recurring-record-amount {
+    margin-left: 56px;
+  }
+
+  .recurring-record .expense-record-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 56px;
+  }
+
+  .add-recurring-button {
+    width: 100%;
+  }
+}
