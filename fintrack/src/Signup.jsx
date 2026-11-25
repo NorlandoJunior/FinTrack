@@ -21,7 +21,6 @@ function Signup() {
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    // A integração com o Supabase será feita na próxima etapa.
   };
 
   return (

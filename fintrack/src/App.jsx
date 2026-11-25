@@ -1,6 +1,9 @@
 import React, { useState } from "react";
+import Signup from "./Signup";
+import Login from "./Login";
 import "./App.css";
 import "./index.css";
+
 
 // Ícones das funcionalidades
 function Icon({ type }) {
@@ -2496,10 +2499,20 @@ function App() {
     },
   ];
 
-  // Display the dashboard on the /dashboard route
-  if (window.location.pathname === "/dashboard") {
-    return <Dashboard />;
-  }
+    // Application routes
+   const currentPath = window.location.pathname;
+
+   if (currentPath === "/dashboard") {
+   return <Dashboard />;
+   }  
+
+   if (currentPath === "/signup") {
+   return <Signup />;
+   }
+
+   if (currentPath === "/login") {
+   return <Login />;
+   }
 
   return (
     <>
@@ -2557,8 +2570,8 @@ function App() {
           </nav>
 
           <div className="header-actions">
-            <a className="login-button" href="/dashboard">
-              <span>Go to Dashboard</span>
+            <a className="login-button" href="/login">
+              <span>Sign In</span>
               <span className="nav-cta-arrow" aria-hidden="true">
                 →
               </span>
@@ -2694,7 +2707,7 @@ function App() {
               <p>
                 Build better financial habits with a clearer view of your money.
               </p>
-              <a className="cta-button" href="/dashboard">
+              <a className="cta-button" href="/signup">
                 Create your account
               </a>
             </div>
