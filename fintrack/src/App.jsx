@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "./App.css";
 import "./index.css";
+import Reports from "./components/Reports";
 
 // Ícones das funcionalidades
 function Icon({ type }) {
@@ -1002,6 +1003,8 @@ function Dashboard() {
             setRecurringExpenses={setRecurringExpenses}
             today={today}
           />
+        ) : activeTab === "reports" ? (
+          <Reports />
         ) : (
           /* =====================================
              OTHER SECTIONS - UNDER DEVELOPMENT
