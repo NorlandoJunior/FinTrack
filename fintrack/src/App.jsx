@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import "./App.css";
 import "./index.css";
-import Reports from "./components/Reports";
 
 // Ícones das funcionalidades
 function Icon({ type }) {
@@ -990,11 +989,11 @@ function Dashboard() {
             budgetProgress={budgetProgress}
             onSaveBudget={handleSaveBudget}
           />
-                ) : activeTab === "upcoming" ? (
+        ) : activeTab === "upcoming" ? (
           <UpcomingPaymentsManagement
             payments={scheduledPayments}
             setPayments={setScheduledPayments}
-            // recurringExpenses={recurringExpenses}
+            recurringExpenses={recurringExpenses}
             today={today}
           />
         ) : activeTab === "recurring" ? (
@@ -1003,8 +1002,6 @@ function Dashboard() {
             setRecurringExpenses={setRecurringExpenses}
             today={today}
           />
-        ) : activeTab === "reports" ? (
-          <Reports />
         ) : (
           /* =====================================
              OTHER SECTIONS - UNDER DEVELOPMENT
